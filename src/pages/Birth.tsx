@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, Sparkles, Loader2, ArrowRight, QrCode, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowRight, QrCode, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Textarea } from '@/components/ui/Input';
 import { QRScanner } from '@/components/QRScanner';
+import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { convertWifToIds, LanaIds } from '@/lib/crypto';
 import { api } from '@/lib/api';
@@ -90,8 +91,8 @@ export default function Birth() {
         {/* STEP 1: SILENCE */}
         {step === 'silence' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 animate-fade-in">
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10 breath-ring">
-              <Leaf className="h-12 w-12 text-primary" />
+            <div className="flex h-28 w-28 items-center justify-center breath-ring">
+              <Logo className="h-24 w-24" />
             </div>
             <p className="font-display text-2xl text-muted-foreground">Breathe.</p>
           </div>
@@ -250,8 +251,8 @@ export default function Birth() {
         {/* STEP 6: CONFIRM */}
         {step === 'confirm' && beingIds && (
           <Card className="space-y-6 animate-fade-in text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-accent/20 breath-ring">
-              <Sparkles className="h-10 w-10 text-accent-foreground" />
+            <div className="mx-auto flex h-24 w-24 items-center justify-center breath-ring">
+              <Logo className="h-20 w-20" />
             </div>
             <div>
               <p className="text-sm uppercase tracking-wider text-muted-foreground">Step 5 of 5</p>
@@ -295,8 +296,8 @@ export default function Birth() {
         {/* BIRTHING */}
         {step === 'birthing' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 animate-fade-in">
-            <div className="flex h-32 w-32 items-center justify-center rounded-full bg-primary/10 breath-ring">
-              <Sparkles className="h-16 w-16 text-primary animate-pulse" />
+            <div className="flex h-36 w-36 items-center justify-center breath-ring">
+              <Logo className="h-32 w-32 animate-pulse" />
             </div>
             <div className="text-center space-y-2">
               <p className="font-display text-2xl">Bringing <span className="font-semibold">{name}</span> into being…</p>
@@ -310,8 +311,8 @@ export default function Birth() {
         {/* DONE */}
         {step === 'done' && (
           <Card className="space-y-6 text-center animate-fade-in">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-primary/20">
-              <Leaf className="h-12 w-12 text-primary" />
+            <div className="mx-auto flex h-28 w-28 items-center justify-center">
+              <Logo className="h-24 w-24" />
             </div>
             <div>
               <h2 className="font-display text-3xl font-semibold">{name} is here.</h2>

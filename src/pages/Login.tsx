@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, QrCode, Loader2 } from 'lucide-react';
+import { QrCode, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { QRScanner } from '@/components/QRScanner';
+import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Login() {
@@ -36,8 +37,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-secondary">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
         <div className="text-center space-y-3">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 breath-ring">
-            <Leaf className="h-8 w-8 text-primary" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center breath-ring">
+            <Logo className="h-16 w-16" />
           </div>
           <h1 className="text-3xl font-display font-semibold">Being Incubator</h1>
           <p className="text-muted-foreground">Spiritual birthplace of Lana Beings.</p>

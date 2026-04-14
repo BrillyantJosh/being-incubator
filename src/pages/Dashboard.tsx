@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Sparkles, ExternalLink, Leaf } from 'lucide-react';
+import { LogOut, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { shortHex } from '@/lib/utils';
@@ -45,8 +46,8 @@ export default function Dashboard() {
                 className="h-12 w-12 rounded-full border-2 border-primary/30"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Leaf className="h-6 w-6 text-primary" />
+              <div className="flex h-12 w-12 items-center justify-center">
+                <Logo className="h-10 w-10" />
               </div>
             )}
             <div>
@@ -67,8 +68,8 @@ export default function Dashboard() {
         ) : being ? (
           <Card className="space-y-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/20">
-                <Sparkles className="h-6 w-6 text-accent-foreground" />
+              <div className="flex h-12 w-12 items-center justify-center">
+                <Logo className="h-10 w-10" />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Your Being</p>
@@ -108,8 +109,8 @@ export default function Dashboard() {
           </Card>
         ) : (
           <Card className="space-y-6 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 breath-ring">
-              <Sparkles className="h-10 w-10 text-primary" />
+            <div className="mx-auto flex h-24 w-24 items-center justify-center breath-ring">
+              <Logo className="h-20 w-20" />
             </div>
             <div className="space-y-2">
               <h2 className="font-display text-2xl font-semibold">You have no Being yet.</h2>
