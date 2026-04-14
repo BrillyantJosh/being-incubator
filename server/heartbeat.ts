@@ -11,9 +11,10 @@ async function tick() {
         event_id: data.event_id,
         version: data.version,
         relays_json: JSON.stringify(data.relays),
+        electrum_json: JSON.stringify(data.electrum_servers || []),
         updated_at: Math.floor(Date.now() / 1000),
       });
-      console.log(`[heartbeat] KIND 38888 updated: v${data.version}, ${data.relays.length} relays`);
+      console.log(`[heartbeat] KIND 38888 updated: v${data.version}, ${data.relays.length} relays, ${(data.electrum_servers || []).length} electrum`);
     }
   } catch (err) {
     console.warn('[heartbeat] error:', err);

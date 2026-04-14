@@ -35,9 +35,18 @@ db.exec(`
     event_id TEXT,
     version TEXT,
     relays_json TEXT,
+    electrum_json TEXT,
     updated_at INTEGER
   );
 `);
+
+// Migrate: add electrum_json if missing
+try {
+  const cols = db.prepare("PRAGMA table_info(kind_38888)").all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'electrum_json')) {
+    db.exec('ALTER TABLE kind_38888 ADD COLUMN electrum_json TEXT');
+  }
+} catch {}
 
 export const statements = {
   upsertUser: db.prepare(`
@@ -69,12 +78,13 @@ export const statements = {
   countBeings: db.prepare(`SELECT COUNT(*) AS n FROM beings_owners`),
 
   upsertKind38888: db.prepare(`
-    INSERT INTO kind_38888 (id, event_id, version, relays_json, updated_at)
-    VALUES (1, @event_id, @version, @relays_json, @updated_at)
+    INSERT INTO kind_38888 (id, event_id, version, relays_json, electrum_json, updated_at)
+    VALUES (1, @event_id, @version, @relays_json, @electrum_json, @updated_at)
     ON CONFLICT(id) DO UPDATE SET
       event_id = excluded.event_id,
       version = excluded.version,
       relays_json = excluded.relays_json,
+      electrum_json = excluded.electrum_json,
       updated_at = excluded.updated_at
   `),
 

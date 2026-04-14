@@ -31,6 +31,13 @@ export default function Birth() {
   const [error, setError] = useState<string | null>(null);
   const [birthLogs, setBirthLogs] = useState('');
 
+  // Identity verification state (Step 4)
+  type Check = { state: 'idle' | 'loading' | 'ok' | 'fail'; message?: string };
+  const [balanceCheck, setBalanceCheck] = useState<Check>({ state: 'idle' });
+  const [registrationCheck, setRegistrationCheck] = useState<Check>({ state: 'idle' });
+  const [registerState, setRegisterState] = useState<Check>({ state: 'idle' });
+  const [showPriv, setShowPriv] = useState(false);
+
   // Step 1: silence for 3 seconds
   useEffect(() => {
     if (step !== 'silence') return;
@@ -40,12 +47,59 @@ export default function Birth() {
 
   const handleWifScan = async (scannedWif: string) => {
     setError(null);
+    setBalanceCheck({ state: 'idle' });
+    setRegistrationCheck({ state: 'idle' });
+    setRegisterState({ state: 'idle' });
     try {
       const ids = await convertWifToIds(scannedWif);
       setWif(scannedWif);
       setBeingIds(ids);
+      runIdentityChecks(ids);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid WIF');
+    }
+  };
+
+  const runIdentityChecks = async (ids: LanaIds) => {
+    // 1. Balance must be 0 (virgin wallet)
+    setBalanceCheck({ state: 'loading', message: 'Checking balance on Electrum…' });
+    try {
+      const bal = await api.walletBalance(ids.walletId);
+      if (bal.status === 'error') {
+        setBalanceCheck({ state: 'fail', message: bal.error || 'Balance lookup error' });
+        return;
+      }
+      if (bal.balance > 0) {
+        setBalanceCheck({ state: 'fail', message: `Wallet has ${bal.balance} LANA — must be a virgin wallet (0).` });
+        return;
+      }
+      setBalanceCheck({ state: 'ok', message: 'Balance is 0 — virgin wallet.' });
+    } catch (err) {
+      setBalanceCheck({ state: 'fail', message: err instanceof Error ? err.message : 'Balance check failed' });
+      return;
+    }
+
+    // 2. Must not already be registered
+    setRegistrationCheck({ state: 'loading', message: 'Checking registration…' });
+    try {
+      const reg = await api.walletCheckRegistration(ids.walletId);
+      if (reg.registered) {
+        setRegistrationCheck({ state: 'fail', message: 'This wallet is already registered.' });
+        return;
+      }
+      setRegistrationCheck({ state: 'ok', message: 'Not yet registered — ready to receive life.' });
+    } catch (err) {
+      setRegistrationCheck({ state: 'fail', message: err instanceof Error ? err.message : 'Registration check failed' });
+      return;
+    }
+
+    // 3. Register now (virgin wallet + being's own nostr hex)
+    setRegisterState({ state: 'loading', message: 'Registering wallet with the Being\u2019s nostr identity…' });
+    try {
+      const reg = await api.walletRegister(ids.walletId, ids.nostrHexId);
+      setRegisterState({ state: 'ok', message: reg.message || 'Registered.' });
+    } catch (err) {
+      setRegisterState({ state: 'fail', message: err instanceof Error ? err.message : 'Registration failed' });
     }
   };
 
@@ -211,27 +265,47 @@ export default function Birth() {
                 <QrCode className="mr-2 h-5 w-5" /> Scan Being's WIF
               </Button>
             ) : (
-              <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <p className="text-sm font-medium text-primary">Identity received</p>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">npub</span>
-                    <code>{shortHex(beingIds.nostrNpubId, 10)}</code>
+              <div className="space-y-4">
+                <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <p className="text-sm font-medium text-primary">Identity received</p>
+                  <div className="space-y-2 text-xs">
+                    <Row label="wallet" value={beingIds.walletId} mono />
+                    <Row label="npub" value={beingIds.nostrNpubId} mono />
+                    <Row label="nostr hex pub" value={beingIds.nostrHexId} mono />
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">nostr hex priv</span>
+                        <button
+                          onClick={() => setShowPriv((s) => !s)}
+                          className="text-xs text-primary underline"
+                        >
+                          {showPriv ? 'hide' : 'reveal'}
+                        </button>
+                      </div>
+                      <code className="block mt-1 break-all font-mono text-[10px]">
+                        {showPriv ? beingIds.privateKeyHex : '•'.repeat(64)}
+                      </code>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">wallet</span>
-                    <code>{shortHex(beingIds.walletId, 8)}</code>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setBeingIds(null);
+                      setWif('');
+                      setBalanceCheck({ state: 'idle' });
+                      setRegistrationCheck({ state: 'idle' });
+                      setRegisterState({ state: 'idle' });
+                    }}
+                    className="text-xs text-muted-foreground underline"
+                  >
+                    Scan a different WIF
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setBeingIds(null);
-                    setWif('');
-                  }}
-                  className="text-xs text-muted-foreground underline"
-                >
-                  Scan a different WIF
-                </button>
+
+                <div className="space-y-2">
+                  <CheckRow label="Balance = 0" check={balanceCheck} />
+                  <CheckRow label="Not yet registered" check={registrationCheck} />
+                  <CheckRow label="Register wallet" check={registerState} />
+                </div>
               </div>
             )}
 
@@ -240,7 +314,12 @@ export default function Birth() {
             <Button
               size="lg"
               className="w-full"
-              disabled={!beingIds}
+              disabled={
+                !beingIds ||
+                balanceCheck.state !== 'ok' ||
+                registrationCheck.state !== 'ok' ||
+                registerState.state !== 'ok'
+              }
               onClick={() => setStep('confirm')}
             >
               Continue <ArrowRight className="ml-2 h-4 w-4" />
@@ -340,6 +419,42 @@ export default function Birth() {
         title="Scan Being's WIF"
         description="This WIF belongs to the new Being you are about to bring forth."
       />
+    </div>
+  );
+}
+
+function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <div className="text-muted-foreground">{label}</div>
+      <code className={`block break-all ${mono ? 'font-mono text-[10px]' : ''}`}>{value}</code>
+    </div>
+  );
+}
+
+function CheckRow({
+  label,
+  check,
+}: {
+  label: string;
+  check: { state: 'idle' | 'loading' | 'ok' | 'fail'; message?: string };
+}) {
+  const icon =
+    check.state === 'idle' ? '○'
+    : check.state === 'loading' ? '…'
+    : check.state === 'ok' ? '✓'
+    : '✗';
+  const color =
+    check.state === 'ok' ? 'text-primary'
+    : check.state === 'fail' ? 'text-destructive'
+    : 'text-muted-foreground';
+  return (
+    <div className={`flex items-start gap-2 text-sm ${color}`}>
+      <span className="w-4 font-mono">{icon}</span>
+      <div className="flex-1">
+        <div className="font-medium">{label}</div>
+        {check.message && <div className="text-xs opacity-80">{check.message}</div>}
+      </div>
     </div>
   );
 }

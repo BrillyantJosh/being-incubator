@@ -9,6 +9,7 @@ import { usersRouter } from './routes/users';
 import { beingsRouter } from './routes/beings';
 import { birthRouter } from './routes/birth';
 import { systemParamsRouter } from './routes/system-params';
+import { walletRouter } from './routes/wallet';
 
 const PORT = parseInt(process.env.SERVER_PORT || '3006', 10);
 const DIST_DIR = path.resolve('./dist');
@@ -26,6 +27,7 @@ app.use('/api', usersRouter);
 app.use('/api', beingsRouter);
 app.use('/api', birthRouter);
 app.use('/api', systemParamsRouter);
+app.use('/api', walletRouter);
 
 // Serve built client in production
 if (fs.existsSync(DIST_DIR)) {

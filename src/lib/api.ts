@@ -43,4 +43,22 @@ export const api = {
     }),
 
   health: () => request<{ ok: true; beings: number; version: string }>('/health'),
+
+  walletBalance: (address: string) =>
+    request<{
+      wallet_id: string; balance: number; confirmed: number; unconfirmed: number;
+      status: 'active' | 'inactive' | 'error'; error?: string;
+    }>(`/api/wallet/balance/${encodeURIComponent(address)}`),
+
+  walletCheckRegistration: (wallet_id: string) =>
+    request<{ success?: boolean; registered?: boolean; wallet?: { frozen?: boolean }; [k: string]: any }>(
+      '/api/wallet/check-registration',
+      { method: 'POST', body: JSON.stringify({ wallet_id }) },
+    ),
+
+  walletRegister: (wallet_id: string, nostr_id_hex: string) =>
+    request<{ status?: string; message?: string; [k: string]: any }>(
+      '/api/wallet/register',
+      { method: 'POST', body: JSON.stringify({ wallet_id, nostr_id_hex }) },
+    ),
 };

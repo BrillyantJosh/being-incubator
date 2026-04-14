@@ -17,9 +17,15 @@ export interface NostrEvent {
   sig: string;
 }
 
+export interface ElectrumServerEntry {
+  host: string;
+  port: number;
+}
+
 export interface Kind38888Data {
   event_id: string;
   relays: string[];
+  electrum_servers: ElectrumServerEntry[];
   version: string;
   valid_from: number;
 }
@@ -32,11 +38,15 @@ function parseKind38888(event: NostrEvent): Kind38888Data {
       : {};
   } catch { /* ignore */ }
   const relays = event.tags.filter((t) => t[0] === 'relay').map((t) => t[1]);
+  const electrum_servers: ElectrumServerEntry[] = event.tags
+    .filter((t) => t[0] === 'electrum')
+    .map((t) => ({ host: t[1], port: parseInt(t[2] || '5097', 10) }));
   const version = event.tags.find((t) => t[0] === 'version')?.[1] || content.version || '1';
   const valid_from = parseInt(event.tags.find((t) => t[0] === 'valid_from')?.[1] || content.valid_from || '0');
   return {
     event_id: event.id,
     relays: relays.length > 0 ? relays : content.relays || LANA_RELAYS,
+    electrum_servers: electrum_servers.length > 0 ? electrum_servers : (content.electrum || []),
     version,
     valid_from,
   };
