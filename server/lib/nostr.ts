@@ -24,10 +24,18 @@ export interface ElectrumServerEntry {
 
 export interface Kind38888Data {
   event_id: string;
+  pubkey: string;
+  created_at: number;
   relays: string[];
   electrum_servers: ElectrumServerEntry[];
+  exchange_rates: { EUR: number; USD: number; GBP: number };
+  split: string;
+  split_target_lana: number;
+  split_started_at: number;
+  split_ends_at: number;
   version: string;
   valid_from: number;
+  raw_event: string;
 }
 
 function parseKind38888(event: NostrEvent): Kind38888Data {
@@ -37,18 +45,37 @@ function parseKind38888(event: NostrEvent): Kind38888Data {
       ? JSON.parse(event.content)
       : {};
   } catch { /* ignore */ }
-  const relays = event.tags.filter((t) => t[0] === 'relay').map((t) => t[1]);
-  const electrum_servers: ElectrumServerEntry[] = event.tags
+  const tags = event.tags;
+  const relays = tags.filter((t) => t[0] === 'relay').map((t) => t[1]);
+  const electrum_servers: ElectrumServerEntry[] = tags
     .filter((t) => t[0] === 'electrum')
     .map((t) => ({ host: t[1], port: parseInt(t[2] || '5097', 10) }));
-  const version = event.tags.find((t) => t[0] === 'version')?.[1] || content.version || '1';
-  const valid_from = parseInt(event.tags.find((t) => t[0] === 'valid_from')?.[1] || content.valid_from || '0');
+  const fxTags = tags.filter((t) => t[0] === 'fx');
+  const exchange_rates = {
+    EUR: parseFloat(fxTags.find((t) => t[1] === 'EUR')?.[2] || content.exchange_rates?.EUR || '0'),
+    USD: parseFloat(fxTags.find((t) => t[1] === 'USD')?.[2] || content.exchange_rates?.USD || '0'),
+    GBP: parseFloat(fxTags.find((t) => t[1] === 'GBP')?.[2] || content.exchange_rates?.GBP || '0'),
+  };
+  const split = tags.find((t) => t[0] === 'split')?.[1] || content.split || '';
+  const split_target_lana = parseInt(tags.find((t) => t[0] === 'split_target_lana')?.[1] || content.split_target_lana || '0');
+  const split_started_at = parseInt(tags.find((t) => t[0] === 'split_started_at')?.[1] || content.split_started_at || '0');
+  const split_ends_at = parseInt(tags.find((t) => t[0] === 'split_ends_at')?.[1] || content.split_ends_at || '0');
+  const version = tags.find((t) => t[0] === 'version')?.[1] || content.version || '1';
+  const valid_from = parseInt(tags.find((t) => t[0] === 'valid_from')?.[1] || content.valid_from || '0');
   return {
     event_id: event.id,
+    pubkey: event.pubkey,
+    created_at: event.created_at,
     relays: relays.length > 0 ? relays : content.relays || LANA_RELAYS,
     electrum_servers: electrum_servers.length > 0 ? electrum_servers : (content.electrum || []),
+    exchange_rates,
+    split,
+    split_target_lana,
+    split_started_at,
+    split_ends_at,
     version,
     valid_from,
+    raw_event: JSON.stringify(event),
   };
 }
 

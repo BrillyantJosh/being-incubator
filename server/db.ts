@@ -33,19 +33,46 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS kind_38888 (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     event_id TEXT,
+    pubkey TEXT,
+    created_at INTEGER,
     version TEXT,
+    valid_from INTEGER,
     relays_json TEXT,
     electrum_json TEXT,
+    exchange_rates_json TEXT,
+    split TEXT,
+    split_target_lana INTEGER,
+    split_started_at INTEGER,
+    split_ends_at INTEGER,
+    raw_event TEXT,
     updated_at INTEGER
+  );
+
+  CREATE TABLE IF NOT EXISTS heartbeat_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    success INTEGER,
+    error TEXT
   );
 `);
 
-// Migrate: add electrum_json if missing
+// Migrations: add new kind_38888 columns if upgrading from earlier schema
 try {
-  const cols = db.prepare("PRAGMA table_info(kind_38888)").all() as { name: string }[];
-  if (!cols.some((c) => c.name === 'electrum_json')) {
-    db.exec('ALTER TABLE kind_38888 ADD COLUMN electrum_json TEXT');
-  }
+  const cols = (db.prepare("PRAGMA table_info(kind_38888)").all() as { name: string }[]).map((c) => c.name);
+  const addIfMissing = (name: string, type: string) => {
+    if (!cols.includes(name)) db.exec(`ALTER TABLE kind_38888 ADD COLUMN ${name} ${type}`);
+  };
+  addIfMissing('pubkey', 'TEXT');
+  addIfMissing('created_at', 'INTEGER');
+  addIfMissing('valid_from', 'INTEGER');
+  addIfMissing('electrum_json', 'TEXT');
+  addIfMissing('exchange_rates_json', 'TEXT');
+  addIfMissing('split', 'TEXT');
+  addIfMissing('split_target_lana', 'INTEGER');
+  addIfMissing('split_started_at', 'INTEGER');
+  addIfMissing('split_ends_at', 'INTEGER');
+  addIfMissing('raw_event', 'TEXT');
 } catch {}
 
 export const statements = {
@@ -78,15 +105,44 @@ export const statements = {
   countBeings: db.prepare(`SELECT COUNT(*) AS n FROM beings_owners`),
 
   upsertKind38888: db.prepare(`
-    INSERT INTO kind_38888 (id, event_id, version, relays_json, electrum_json, updated_at)
-    VALUES (1, @event_id, @version, @relays_json, @electrum_json, @updated_at)
+    INSERT INTO kind_38888 (
+      id, event_id, pubkey, created_at, version, valid_from,
+      relays_json, electrum_json, exchange_rates_json,
+      split, split_target_lana, split_started_at, split_ends_at,
+      raw_event, updated_at
+    )
+    VALUES (
+      1, @event_id, @pubkey, @created_at, @version, @valid_from,
+      @relays_json, @electrum_json, @exchange_rates_json,
+      @split, @split_target_lana, @split_started_at, @split_ends_at,
+      @raw_event, @updated_at
+    )
     ON CONFLICT(id) DO UPDATE SET
       event_id = excluded.event_id,
+      pubkey = excluded.pubkey,
+      created_at = excluded.created_at,
       version = excluded.version,
+      valid_from = excluded.valid_from,
       relays_json = excluded.relays_json,
       electrum_json = excluded.electrum_json,
+      exchange_rates_json = excluded.exchange_rates_json,
+      split = excluded.split,
+      split_target_lana = excluded.split_target_lana,
+      split_started_at = excluded.split_started_at,
+      split_ends_at = excluded.split_ends_at,
+      raw_event = excluded.raw_event,
       updated_at = excluded.updated_at
   `),
 
   getKind38888: db.prepare(`SELECT * FROM kind_38888 WHERE id = 1`),
+
+  insertHeartbeatLog: db.prepare(`
+    INSERT INTO heartbeat_logs (started_at) VALUES (?)
+  `),
+  updateHeartbeatLog: db.prepare(`
+    UPDATE heartbeat_logs SET completed_at = @completed_at, success = @success, error = @error WHERE id = @id
+  `),
+  pruneHeartbeatLogs: db.prepare(`
+    DELETE FROM heartbeat_logs WHERE id < (SELECT MAX(id) FROM heartbeat_logs) - 500
+  `),
 };
