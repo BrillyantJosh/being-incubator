@@ -37,7 +37,15 @@ export const api = {
     being_wif?: string;
     being_wallet?: string;
   }) =>
-    request<{ ok: true; domain: string; logs: string }>('/api/beings/birth', {
+    request<{
+      ok: true;
+      domain: string;
+      logs: string;
+      certificate: null | {
+        event_id: string;
+        relays: Array<{ url: string; accepted: boolean; reason?: string }>;
+      };
+    }>('/api/beings/birth', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

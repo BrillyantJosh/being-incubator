@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { spawn } from 'child_process';
 import { statements } from '../db';
+import { publishBirthCertificate } from '../lib/publish';
 
 export const birthRouter = Router();
 
@@ -78,7 +79,7 @@ birthRouter.post('/beings/birth', async (req, res) => {
   child.stdout.on('data', (d) => { stdout += d.toString(); });
   child.stderr.on('data', (d) => { stderr += d.toString(); });
 
-  child.on('close', (code) => {
+  child.on('close', async (code) => {
     const logs = `--- stdout ---\n${stdout}\n--- stderr ---\n${stderr}`;
     if (code !== 0) {
       console.error(`[birth] exit ${code}:\n${logs}`);
@@ -99,7 +100,26 @@ birthRouter.post('/beings/birth', async (req, res) => {
       return res.status(500).json({ error: 'Birth succeeded but DB record failed', logs });
     }
     console.log(`[birth] ✅ ${name} is alive at ${domain}`);
-    res.json({ ok: true, domain, logs });
+
+    // Publish KIND 73984 Birth Certificate (non-fatal if it fails)
+    let certificate: { event_id: string; relays: Array<{ url: string; accepted: boolean; reason?: string }> } | null = null;
+    try {
+      const result = await publishBirthCertificate({
+        being_hex_pub,
+        being_npub,
+        being_name: name,
+        owner_hex,
+        domain,
+        language: language || 'english',
+        vision: vision || '',
+        being_wallet,
+      });
+      certificate = { event_id: result.event_id, relays: result.relays };
+    } catch (err: any) {
+      console.error('[birth-cert] publish failed:', err.message);
+    }
+
+    res.json({ ok: true, domain, logs, certificate });
   });
 
   child.on('error', (err) => {

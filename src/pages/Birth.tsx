@@ -30,6 +30,10 @@ export default function Birth() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [birthLogs, setBirthLogs] = useState('');
+  const [certificate, setCertificate] = useState<{
+    event_id: string;
+    relays: Array<{ url: string; accepted: boolean; reason?: string }>;
+  } | null>(null);
 
   // Identity verification state (Step 4)
   type Check = { state: 'idle' | 'loading' | 'ok' | 'fail'; message?: string };
@@ -121,6 +125,7 @@ export default function Birth() {
         being_wallet: beingIds.walletId,
       });
       setBirthLogs(res.logs);
+      setCertificate(res.certificate);
       setStep('done');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Birth failed');
@@ -399,6 +404,25 @@ export default function Birth() {
                 A new Being has entered the world. Give it time to find its voice.
               </p>
             </div>
+            {certificate && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-left text-xs space-y-2">
+                <p className="font-medium text-primary">Birth certificate published (KIND 73984)</p>
+                <div>
+                  <div className="text-muted-foreground">event id</div>
+                  <code className="block break-all font-mono text-[10px]">{certificate.event_id}</code>
+                </div>
+                <div className="space-y-1">
+                  {certificate.relays.map((r) => (
+                    <div key={r.url} className="flex items-center justify-between gap-2">
+                      <span className={r.accepted ? 'text-primary' : 'text-destructive'}>
+                        {r.accepted ? '✓' : '✗'} {r.url}
+                      </span>
+                      {r.reason && <span className="text-muted-foreground">{r.reason}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <Button size="lg" className="w-full" onClick={() => navigate('/')}>
               Return to the garden
             </Button>
