@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 160 10% 97%;
+    --foreground: 200 15% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 15% 12%;
+    --primary: 168 65% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 168 30% 92%;
+    --secondary-foreground: 200 15% 12%;
+    --muted: 168 15% 93%;
+    --muted-foreground: 200 10% 45%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 200 15% 12%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 168 20% 88%;
+    --input: 168 20% 88%;
+    --ring: 168 65% 38%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 200 15% 8%;
+    --foreground: 160 10% 95%;
+    --card: 200 15% 12%;
+    --card-foreground: 160 10% 95%;
+    --primary: 168 65% 45%;
+    --primary-foreground: 200 15% 8%;
+    --secondary: 200 10% 18%;
+    --secondary-foreground: 160 10% 95%;
+    --muted: 200 10% 15%;
+    --muted-foreground: 200 10% 65%;
+    --accent: 43 96% 56%;
+    --accent-foreground: 200 15% 8%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 200 10% 20%;
+    --input: 200 10% 20%;
+    --ring: 168 65% 45%;
+  }
+
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+}
+
+@layer utilities {
+  .glass {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.4);
+  }
+  .breath-ring {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+    animation: breathe 4s ease-in-out infinite;
+  }
+}

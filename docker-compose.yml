@@ -1,0 +1,30 @@
+services:
+  being-incubator:
+    image: being-incubator:latest
+    container_name: being-incubator
+    restart: unless-stopped
+    env_file: .env
+    expose:
+      - "3006"
+    volumes:
+      - ./data:/app/data
+      # Mount the beings root so birth.sh + beings/ are reachable
+      - /opt/beings:/opt/beings
+      # Docker socket so the incubator can launch new being containers via birth.sh
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - VIRTUAL_HOST=incubator.lana.is
+      - VIRTUAL_PORT=3006
+      - LETSENCRYPT_HOST=incubator.lana.is
+      - LETSENCRYPT_EMAIL=admin@lana.is
+      - SERVER_PORT=3006
+      - BEINGS_ROOT=/opt/beings
+      - BIRTH_SCRIPT=/opt/beings/incubator/birth.sh
+      - BEING_PARENT_DOMAIN=lana.is
+      - DB_PATH=/app/data/incubator.db
+    networks:
+      - webproxy
+
+networks:
+  webproxy:
+    external: true
