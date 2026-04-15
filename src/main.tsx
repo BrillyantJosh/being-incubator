@@ -4,7 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { LangProvider } from './contexts/LangContext';
+import { startPulsingFavicon } from './lib/pulseFavicon';
 import './index.css';
+
+startPulsingFavicon();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
