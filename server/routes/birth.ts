@@ -14,7 +14,11 @@ const MAX_GESTATION_MS = 7 * 86400_000; // 7 days
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
 const HEX64_RE = /^[0-9a-f]{64}$/i;
-const WIF_RE = /^[5KL9c][a-zA-Z0-9]{50,51}$/;
+// Lana WIF: base58-encoded with version byte 0xB0 (compressed, starts with "T")
+// or 0x41 (uncompressed). Previous regex [5KL9c] was Bitcoin-only and rejected
+// every real Lana key. We use the base58 alphabet (excludes 0, O, I, l) and
+// the plausible length range (51–52 chars for compressed, ~51 for uncompressed).
+const WIF_RE = /^[A-HJ-NP-Za-km-z1-9]{51,52}$/;
 
 // Subdomains that would collide with Lana infrastructure or standard DNS conventions.
 const RESERVED_NAMES = new Set([

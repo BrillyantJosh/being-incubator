@@ -189,9 +189,6 @@ export default function Dashboard() {
           </Card>
         )}
 
-        <footer className="text-center text-xs text-muted-foreground">
-          <code>{shortHex(session.nostrNpubId, 12)}</code>
-        </footer>
       </div>
     </div>
   );
