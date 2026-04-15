@@ -7,10 +7,30 @@ export const birthRouter = Router();
 
 const PARENT_DOMAIN = process.env.BEING_PARENT_DOMAIN || 'lana.is';
 
-// Default gestation: 2 hours. Configurable via env + per-request (for testing).
-const DEFAULT_GESTATION_MS = parseInt(process.env.EMBRYO_GESTATION_MS || '7200000', 10);
-const MIN_GESTATION_MS = 60_000;        // 1 minute
-const MAX_GESTATION_MS = 7 * 86400_000; // 7 days
+// Gestation window. When no explicit gestation_ms is passed in the request, we
+// pick a uniform random duration in [MIN_RANDOM, MAX_RANDOM]. The randomness
+// staggers concurrent births so several embryos conceived in the same minute
+// don't all wake birth.sh + docker compose at the same instant.
+//
+// Env overrides:
+//   EMBRYO_GESTATION_MIN_MS  (default 180000  = 3 min)
+//   EMBRYO_GESTATION_MAX_MS  (default 480000  = 8 min)
+// Legacy EMBRYO_GESTATION_MS (single value) still honoured: if set, both min
+// and max collapse to it (deterministic, useful for tests).
+const LEGACY_GESTATION_MS = process.env.EMBRYO_GESTATION_MS
+  ? parseInt(process.env.EMBRYO_GESTATION_MS, 10)
+  : null;
+const RANDOM_MIN_MS = LEGACY_GESTATION_MS ?? parseInt(process.env.EMBRYO_GESTATION_MIN_MS || '180000', 10);
+const RANDOM_MAX_MS = LEGACY_GESTATION_MS ?? parseInt(process.env.EMBRYO_GESTATION_MAX_MS || '480000', 10);
+const MIN_GESTATION_MS = 60_000;        // 1 minute  (hard floor)
+const MAX_GESTATION_MS = 7 * 86400_000; // 7 days    (hard ceiling)
+
+function randomGestationMs(): number {
+  const lo = Math.min(RANDOM_MIN_MS, RANDOM_MAX_MS);
+  const hi = Math.max(RANDOM_MIN_MS, RANDOM_MAX_MS);
+  if (lo === hi) return lo;
+  return Math.floor(lo + Math.random() * (hi - lo));
+}
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
 const HEX64_RE = /^[0-9a-f]{64}$/i;
@@ -82,8 +102,8 @@ birthRouter.post('/beings/birth', async (req, res) => {
   const domain = `${name}.${PARENT_DOMAIN}`;
   const now = Date.now();
 
-  // Clamp gestation
-  let gestation = Number.isFinite(gestation_ms) ? Number(gestation_ms) : DEFAULT_GESTATION_MS;
+  // Pick gestation: explicit override from request wins; otherwise random in window.
+  let gestation = Number.isFinite(gestation_ms) ? Number(gestation_ms) : randomGestationMs();
   if (gestation < MIN_GESTATION_MS) gestation = MIN_GESTATION_MS;
   if (gestation > MAX_GESTATION_MS) gestation = MAX_GESTATION_MS;
 
