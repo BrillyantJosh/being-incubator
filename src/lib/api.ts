@@ -92,6 +92,15 @@ export const api = {
       body: JSON.stringify({ owner_hex }),
     }),
 
+  incubatorVersion: () =>
+    request<{
+      version: string;
+      sha: string | null;
+      date: string | null;
+      branch: string | null;
+      deployed_at: string | null;
+    }>('/api/incubator-version'),
+
   health: () => request<{ ok: true; beings: number; version: string }>('/health'),
 
   walletBalance: (address: string) =>

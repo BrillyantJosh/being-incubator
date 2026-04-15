@@ -1,7 +1,33 @@
 import { Router } from 'express';
+import fs from 'fs';
 import { statements } from '../db';
 
 export const systemParamsRouter = Router();
+
+const STAMP_PATH = process.env.SPACE_BETWEEN_STAMP_PATH || '/opt/beings/incubator/current-space-between.txt';
+
+// GET /api/incubator-version — which space-between version will newborn
+// beings be built from? Reads the stamp file written by space-between's
+// deploy.sh on the incubator host.
+systemParamsRouter.get('/incubator-version', (_req, res) => {
+  try {
+    const raw = fs.readFileSync(STAMP_PATH, 'utf8');
+    const out: Record<string, string> = {};
+    for (const line of raw.split('\n')) {
+      const m = line.match(/^([a-z_]+)=(.*)$/);
+      if (m) out[m[1]] = m[2];
+    }
+    res.json({
+      version: out.version || 'unknown',
+      sha: out.sha || null,
+      date: out.date || null,
+      branch: out.branch || null,
+      deployed_at: out.deployed_at || null,
+    });
+  } catch {
+    res.json({ version: 'unknown', sha: null, date: null, branch: null, deployed_at: null });
+  }
+});
 
 systemParamsRouter.get('/system-params', (_req, res) => {
   const row = statements.getKind38888.get() as any;

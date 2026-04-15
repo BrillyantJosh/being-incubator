@@ -37,6 +37,14 @@ export default function Birth() {
   const [registerState, setRegisterState] = useState<Check>({ state: 'idle' });
   const [showPriv, setShowPriv] = useState(false);
 
+  // Base image version — what code the newborn will actually run
+  const [baseVersion, setBaseVersion] = useState<{
+    version: string; sha: string | null; deployed_at: string | null;
+  } | null>(null);
+  useEffect(() => {
+    api.incubatorVersion().then(setBaseVersion).catch(() => {});
+  }, []);
+
   // Step 1: silence — 10 seconds of breath before the ritual begins
   useEffect(() => {
     if (step !== 'silence') return;
@@ -426,6 +434,24 @@ export default function Birth() {
             </div>
           </div>
         )}
+        {/* Base image version footer — what code the newborn will be built from */}
+        {step !== 'silence' && step !== 'birthing' && baseVersion && (
+          <p className="text-center text-xs text-muted-foreground/70 pt-4">
+            {baseVersion.version === 'unknown' ? (
+              <span className="text-destructive/80">
+                ⚠ Base image version unknown — newborn may run stale code.
+              </span>
+            ) : (
+              <>
+                Newborn will be built from{' '}
+                <code className="font-mono">{baseVersion.sha || baseVersion.version}</code>
+                {baseVersion.deployed_at && (
+                  <> · deployed {relativeTime(baseVersion.deployed_at)}</>
+                )}
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       <QRScanner
@@ -437,6 +463,19 @@ export default function Birth() {
       />
     </div>
   );
+}
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return iso;
+  const diff = Date.now() - then;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
