@@ -135,6 +135,33 @@ export default function Birth() {
 
   const nameValid = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/.test(name.trim().toLowerCase());
 
+  // Slavic + common European diacritics → ASCII for DNS-safe subdomain.
+  // "šumi" → "sumi", "žival" → "zival", "čas" → "cas", "ćirilica" → "cirilica",
+  // "đurđa" → "durda", "łódź" → "lodz". Runs before the strip-regex.
+  const sanitizeName = (raw: string): string => {
+    const map: Record<string, string> = {
+      'š':'s','č':'c','ć':'c','ž':'z','đ':'d','ð':'d',
+      'á':'a','à':'a','â':'a','ä':'a','ã':'a','å':'a','ą':'a',
+      'é':'e','è':'e','ê':'e','ë':'e','ę':'e',
+      'í':'i','ì':'i','î':'i','ï':'i',
+      'ó':'o','ò':'o','ô':'o','ö':'o','õ':'o','ø':'o','ő':'o',
+      'ú':'u','ù':'u','û':'u','ü':'u','ů':'u','ű':'u',
+      'ý':'y','ÿ':'y',
+      'ľ':'l','ĺ':'l','ł':'l',
+      'ň':'n','ń':'n','ñ':'n',
+      'ř':'r','ŕ':'r',
+      'ť':'t','ş':'s','ș':'s','ț':'t',
+      'ź':'z','ż':'z','ß':'ss',
+    };
+    return raw
+      .toLowerCase()
+      .normalize('NFC')
+      .split('')
+      .map(ch => map[ch] ?? ch)
+      .join('')
+      .replace(/[^a-z0-9-]/g, '');
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
       <div className="mx-auto max-w-xl space-y-8">
@@ -179,12 +206,13 @@ export default function Birth() {
             </div>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+              onChange={(e) => setName(sanitizeName(e.target.value))}
               placeholder="e.g. sozitje"
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
               Lowercase letters, numbers, and hyphens. 3–32 characters.
+              Diacritics are transliterated (š→s, č→c, ć→c, ž→z, đ→d).
             </p>
             <Button
               size="lg"
