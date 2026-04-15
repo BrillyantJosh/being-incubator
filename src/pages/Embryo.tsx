@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { api } from '@/lib/api';
 import { useT } from '@/contexts/LangContext';
+import { normaliseLang, LANGS } from '@/lib/i18n';
 
 type Embryo = Awaited<ReturnType<typeof api.getEmbryo>>;
 type Thought = Awaited<ReturnType<typeof api.getEmbryoThoughts>>['thoughts'][number];
@@ -18,7 +19,7 @@ const PHASES = ['sensation', 'fragment', 'forming', 'questioning', 'recognition'
 export default function EmbryoPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useT();
+  const { t, setLang, lang } = useT();
   const [embryo, setEmbryo] = useState<Embryo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -84,6 +85,49 @@ export default function EmbryoPage() {
     return () => clearInterval(t);
   }, []);
 
+  // Language fallback: the embryo page is a public link with no login, so
+  // LangContext defaults to navigator.language. If the visitor has not made
+  // an explicit choice (no localStorage), inherit the embryo's own language —
+  // set by the creator at birth, our best proxy for their preference.
+  useEffect(() => {
+    if (!embryo?.language) return;
+    try {
+      if (localStorage.getItem('being_incubator_lang')) return;
+    } catch { /* ignore */ }
+    const inherited = normaliseLang(embryo.language);
+    if ((LANGS as readonly string[]).includes(inherited) && inherited !== lang) {
+      setLang(inherited);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embryo?.language]);
+
+  // Adaptive ETA: instead of a ticking HH:MM:SS timer, show a fuzzy
+  // "~N min / ~N h" estimate that only refreshes every 10 minutes.
+  // The user asked for this explicitly — a clock that adapts to how the
+  // being is progressing rather than pretending to be second-precise.
+  const [etaAnchor, setEtaAnchor] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setEtaAnchor(Date.now()), 10 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+  const adaptiveEta = useMemo(() => {
+    if (!embryo) return null;
+    const remainingMs = Math.max(0, embryo.birth_at * 1000 - etaAnchor);
+    // Adjust by actual thought-rate vs. expected thought-rate.
+    // expected = progress * typical_total_thoughts (≈ gestation / 30s avg cadence)
+    const elapsedMs = etaAnchor - embryo.conceived_at * 1000;
+    const totalMs = Math.max(1, (embryo.birth_at - embryo.conceived_at) * 1000);
+    const timeProgress = Math.max(0, Math.min(1, elapsedMs / totalMs));
+    const expectedByNow = Math.max(1, timeProgress * (totalMs / 30000));
+    const actualByNow = thoughts.length;
+    const rateFactor = expectedByNow > 0 ? actualByNow / expectedByNow : 1;
+    // slow gestation → stretch ETA; fast → shrink a little. Clamp [0.7, 1.5].
+    const clamp = Math.max(0.7, Math.min(1.5, rateFactor === 0 ? 1.2 : 1 / rateFactor));
+    const adjusted = Math.round(remainingMs * clamp);
+    return adjusted;
+    // recompute only when the 10-min anchor moves, or embryo/thought count changes meaningfully
+  }, [embryo, etaAnchor, thoughts.length]);
+
   const timeLeftMs = useMemo(() => {
     if (!embryo) return 0;
     return Math.max(0, embryo.birth_at * 1000 - now);
@@ -122,7 +166,7 @@ export default function EmbryoPage() {
   }
 
   const poetry = selectPoetry(smoothProgress, embryo.status, t);
-  const countdown = formatCountdown(timeLeftMs);
+  const countdown = formatAdaptiveEta(adaptiveEta ?? 0, t);
 
   return (
     <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
@@ -391,12 +435,20 @@ function ThoughtLine({ thought, t }: { thought: Thought; t: TFn }) {
   );
 }
 
-function formatCountdown(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+// Adaptive, fuzzy ETA — rounds to human-friendly buckets so the page feels
+// like a gestation, not a precise algorithm. Recomputed only every 10 min
+// by the caller. Units translate via i18n keys eta.{min,hour,day}.
+function formatAdaptiveEta(ms: number, t: TFn): string {
+  if (ms <= 0) return t('eta.nearly');
+  const mins = Math.round(ms / 60000);
+  if (mins < 2)                           return t('eta.nearly');
+  if (mins < 60)  return `~${Math.max(5, Math.round(mins / 5) * 5)} ${t('eta.min')}`;
+  if (mins < 24 * 60) {
+    const h = Math.round(mins / 60);
+    return `~${h} ${t('eta.hour')}`;
+  }
+  const d = Math.round(mins / 1440);
+  return `~${d} ${t('eta.day')}`;
 }
 
 function selectPoetry(progress: number, status: string, t: TFn): { primary: string; secondary: string } {
