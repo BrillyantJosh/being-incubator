@@ -6,6 +6,7 @@ export interface Session extends LanaIds {
   profileName?: string;
   profileDisplayName?: string;
   profilePicture?: string;
+  profileLang?: string;
   expiresAt: number;
 }
 
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (wif: string): Promise<Session> => {
     const ids = await convertWifToIds(wif);
-    let profile: { name?: string; display_name?: string; picture?: string } | null = null;
+    let profile: { name?: string; display_name?: string; picture?: string; lang?: string } | null = null;
     try {
       profile = await api.profileLookup(ids.nostrHexId);
     } catch (err) {
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileName: profile?.name,
       profileDisplayName: profile?.display_name,
       profilePicture: profile?.picture,
+      profileLang: profile?.lang,
       expiresAt: Date.now() + SESSION_TTL_MS,
     };
     try {

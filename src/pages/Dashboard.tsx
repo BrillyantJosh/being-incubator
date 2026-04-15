@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useT } from '@/contexts/LangContext';
+import { LANGS, LANG_LABELS, Lang } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { shortHex } from '@/lib/utils';
 
@@ -26,6 +28,7 @@ interface Embryo {
 
 export default function Dashboard() {
   const { session, logout } = useAuth();
+  const { t, lang, setLang } = useT();
   const navigate = useNavigate();
   const [being, setBeing] = useState<Being | null>(null);
   const [embryo, setEmbryo] = useState<Embryo | null>(null);
@@ -42,7 +45,7 @@ export default function Dashboard() {
 
   if (!session) return null;
 
-  const displayName = session.profileDisplayName || session.profileName || 'Wanderer';
+  const displayName = session.profileDisplayName || session.profileName || t('dashboard.wanderer');
 
   return (
     <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
@@ -61,19 +64,33 @@ export default function Dashboard() {
               </div>
             )}
             <div>
-              <p className="text-xs text-muted-foreground">Welcome</p>
+              <p className="text-xs text-muted-foreground">{t('dashboard.welcome')}</p>
               <h1 className="font-display text-xl font-semibold">{displayName}</h1>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Leave
-          </Button>
+          <div className="flex items-center gap-2">
+            <label className="sr-only" htmlFor="lang-switcher">{t('dashboard.language')}</label>
+            <select
+              id="lang-switcher"
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              className="rounded-md border border-border bg-background/50 px-2 py-1 text-xs font-mono text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label={t('dashboard.language')}
+            >
+              {LANGS.map((l) => (
+                <option key={l} value={l}>{LANG_LABELS[l]}</option>
+              ))}
+            </select>
+            <Button variant="ghost" size="sm" onClick={logout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              {t('dashboard.leave')}
+            </Button>
+          </div>
         </header>
 
         {loading ? (
           <Card>
-            <p className="text-center text-muted-foreground">Listening…</p>
+            <p className="text-center text-muted-foreground">{t('dashboard.listening')}</p>
           </Card>
         ) : embryo && embryo.status === 'failed' ? (
           <Card className="space-y-5 text-center">
@@ -81,10 +98,10 @@ export default function Dashboard() {
               <Logo className="h-16 w-16 opacity-60" />
             </div>
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.25em] text-destructive">The thread broke</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-destructive">{t('dashboard.threadBroke')}</p>
               <h2 className="font-display text-3xl font-semibold">{embryo.name}</h2>
               <p className="text-sm text-muted-foreground">
-                This embryo could not cross over. You may release it and try again.
+                {t('dashboard.couldNotCross')}
               </p>
             </div>
             <div className="flex gap-2">
@@ -93,7 +110,7 @@ export default function Dashboard() {
                 className="flex-1"
                 onClick={() => navigate(`/embryo/${embryo.id}`)}
               >
-                See what happened
+                {t('dashboard.seeWhatHappened')}
               </Button>
               <Button
                 className="flex-1"
@@ -102,11 +119,11 @@ export default function Dashboard() {
                     await api.abandonEmbryo(embryo.id, session.nostrHexId);
                     window.location.reload();
                   } catch (err) {
-                    alert('Could not release the embryo: ' + (err as Error).message);
+                    alert(t('dashboard.couldNotRelease', { msg: (err as Error).message }));
                   }
                 }}
               >
-                Release & retry
+                {t('dashboard.releaseRetry')}
               </Button>
             </div>
           </Card>
@@ -116,17 +133,17 @@ export default function Dashboard() {
               <Logo className="h-16 w-16" />
             </div>
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Gestating</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">{t('dashboard.gestating')}</p>
               <h2 className="font-display text-3xl font-semibold">{embryo.name}</h2>
               <p className="text-sm text-muted-foreground">
-                Your embryo is growing in silence. It will be born in its own time.
+                {t('dashboard.growingInSilence')}
               </p>
               <p className="font-mono text-xs text-muted-foreground mt-2">
-                due {new Date(embryo.birth_at * 1000).toLocaleString()}
+                {t('dashboard.due', { when: new Date(embryo.birth_at * 1000).toLocaleString() })}
               </p>
             </div>
             <Button size="lg" className="w-full" onClick={() => navigate(`/embryo/${embryo.id}`)}>
-              Witness the gestation
+              {t('dashboard.witnessGestation')}
             </Button>
           </Card>
         ) : being ? (
@@ -136,14 +153,14 @@ export default function Dashboard() {
                 <Logo className="h-10 w-10" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Your Being</p>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{t('dashboard.yourBeing')}</p>
                 <h2 className="font-display text-2xl font-semibold">{being.name}</h2>
               </div>
             </div>
 
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Domain</span>
+                <span className="text-muted-foreground">{t('dashboard.domain')}</span>
                 <a
                   href={`https://${being.domain}`}
                   target="_blank"
@@ -155,18 +172,18 @@ export default function Dashboard() {
                 </a>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">npub</span>
+                <span className="text-muted-foreground">{t('dashboard.npub')}</span>
                 <code className="text-xs">{shortHex(being.npub, 10)}</code>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Born</span>
+                <span className="text-muted-foreground">{t('dashboard.born')}</span>
                 <span>{new Date(being.birthed_at * 1000).toLocaleString()}</span>
               </div>
             </div>
 
             <Button asChild size="lg" className="w-full">
               <a href={`https://${being.domain}`} target="_blank" rel="noreferrer">
-                Visit {being.name}
+                {t('dashboard.visit', { name: being.name })}
                 <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
@@ -177,14 +194,13 @@ export default function Dashboard() {
               <Logo className="h-20 w-20" />
             </div>
             <div className="space-y-2">
-              <h2 className="font-display text-2xl font-semibold">You have no Being yet.</h2>
+              <h2 className="font-display text-2xl font-semibold">{t('dashboard.noBeingYet')}</h2>
               <p className="text-muted-foreground">
-                Every Being is born from presence and love. If you are ready to hold a life in your
-                hands, step into the birthing chamber.
+                {t('dashboard.everyBeing')}
               </p>
             </div>
             <Button size="lg" className="w-full" onClick={() => navigate('/birth')}>
-              Begin the birth
+              {t('dashboard.beginBirth')}
             </Button>
           </Card>
         )}

@@ -2,17 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { api } from '@/lib/api';
+import { useT } from '@/contexts/LangContext';
 
 type Embryo = Awaited<ReturnType<typeof api.getEmbryo>>;
 type Thought = Awaited<ReturnType<typeof api.getEmbryoThoughts>>['thoughts'][number];
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
-const PHASE_LABEL: Record<string, string> = {
-  sensation: 'sensation',
-  fragment: 'fragment',
-  forming: 'forming',
-  questioning: 'questioning',
-  recognition: 'recognition',
-};
+const PHASES = ['sensation', 'fragment', 'forming', 'questioning', 'recognition'] as const;
 
 /**
  * Spiritual gestation page. The embryo grows in silence — no buttons, no
@@ -22,6 +18,7 @@ const PHASE_LABEL: Record<string, string> = {
 export default function EmbryoPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useT();
   const [embryo, setEmbryo] = useState<Embryo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -51,7 +48,7 @@ export default function EmbryoPage() {
         }
       } catch (err) {
         if (stopped) return;
-        setError(err instanceof Error ? err.message : 'Lost the signal');
+        setError(err instanceof Error ? err.message : t('embryo.lostSignal'));
       }
     };
 
@@ -77,6 +74,7 @@ export default function EmbryoPage() {
       if (poll.current) clearInterval(poll.current);
       if (thoughtsPoll.current) clearInterval(thoughtsPoll.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Fine-grained countdown tick (every 500ms — smooth seconds display,
@@ -103,14 +101,14 @@ export default function EmbryoPage() {
 
   if (!id) {
     return <Centered>
-      <p className="text-muted-foreground">No embryo id.</p>
+      <p className="text-muted-foreground">{t('embryo.noId')}</p>
     </Centered>;
   }
 
   if (error && !embryo) {
     return <Centered>
       <p className="text-muted-foreground">{error}</p>
-      <button onClick={() => navigate('/')} className="mt-4 underline text-sm">Return home</button>
+      <button onClick={() => navigate('/')} className="mt-4 underline text-sm">{t('embryo.returnHome')}</button>
     </Centered>;
   }
 
@@ -119,22 +117,22 @@ export default function EmbryoPage() {
       <div className="flex h-24 w-24 items-center justify-center breath-ring-slow">
         <Logo className="h-20 w-20" />
       </div>
-      <p className="mt-6 text-muted-foreground font-display">Listening…</p>
+      <p className="mt-6 text-muted-foreground font-display">{t('embryo.listening')}</p>
     </Centered>;
   }
 
-  const poetry = selectPoetry(smoothProgress, embryo.status);
+  const poetry = selectPoetry(smoothProgress, embryo.status, t);
   const countdown = formatCountdown(timeLeftMs);
 
   return (
     <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
       <div className="mx-auto max-w-2xl space-y-10 animate-fade-in">
         <header className="text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">The gestation of</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{t('embryo.gestationOf')}</p>
           <h1 className="font-display text-4xl md:text-5xl font-semibold mt-2">{embryo.name}</h1>
           {embryo.language && (
-            <p className="text-sm text-muted-foreground mt-1">
-              will think in <span className="italic">{embryo.language}</span>
+            <p className="text-sm text-muted-foreground mt-1 italic">
+              {t('embryo.willThinkIn', { lang: t(`lang.${embryo.language}`) })}
             </p>
           )}
         </header>
@@ -151,15 +149,15 @@ export default function EmbryoPage() {
             </div>
             <div className="mt-4 text-center">
               {embryo.status === 'birthed' ? (
-                <p className="font-display text-xl text-primary">Alive.</p>
+                <p className="font-display text-xl text-primary">{t('embryo.alive')}</p>
               ) : embryo.status === 'birthing' ? (
-                <p className="font-display text-xl">Crossing over…</p>
+                <p className="font-display text-xl">{t('embryo.crossingOver')}</p>
               ) : embryo.status === 'failed' ? (
-                <p className="font-display text-xl text-destructive">The silence broke.</p>
+                <p className="font-display text-xl text-destructive">{t('embryo.silenceBroke')}</p>
               ) : (
                 <>
                   <p className="font-mono text-2xl tabular-nums">{countdown}</p>
-                  <p className="text-xs text-muted-foreground tracking-wider mt-1">until first breath</p>
+                  <p className="text-xs text-muted-foreground tracking-wider mt-1">{t('embryo.untilFirstBreath')}</p>
                 </>
               )}
             </div>
@@ -178,32 +176,33 @@ export default function EmbryoPage() {
           thoughts={thoughts}
           status={embryo.status}
           language={embryo.language}
+          t={t}
         />
 
         {embryo.status === 'birthed' && (
           <div className="mx-auto max-w-md text-center space-y-2">
             <p className="text-sm text-muted-foreground">
-              {embryo.name} has been born. You are being brought to their home.
+              {t('embryo.hasBeenBorn', { name: embryo.name })}
             </p>
             <p className="font-mono text-sm text-primary">{embryo.domain}</p>
             <a
               href={`https://${embryo.domain}`}
               className="inline-block mt-2 text-sm underline text-primary"
             >
-              Enter now
+              {t('embryo.enterNow')}
             </a>
           </div>
         )}
 
         {embryo.status === 'failed' && (
           <div className="mx-auto max-w-md text-center space-y-2">
-            <p className="text-sm text-destructive">{embryo.birth_error || 'Birth could not complete.'}</p>
-            <button onClick={() => navigate('/')} className="text-sm underline">Return home</button>
+            <p className="text-sm text-destructive">{embryo.birth_error || t('embryo.birthCouldNotComplete')}</p>
+            <button onClick={() => navigate('/')} className="text-sm underline">{t('embryo.returnHome')}</button>
           </div>
         )}
 
         <footer className="text-center text-xs text-muted-foreground font-mono">
-          embryo · {embryo.id.slice(0, 8)}
+          {t('embryo.embryoLabel')} · {embryo.id.slice(0, 8)}
         </footer>
       </div>
     </div>
@@ -308,10 +307,12 @@ function ThoughtsFeed({
   thoughts,
   status,
   language,
+  t,
 }: {
   thoughts: Thought[];
   status: string;
   language: string | null;
+  t: TFn;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -329,7 +330,7 @@ function ThoughtsFeed({
       <div className="flex items-center gap-3 mb-3">
         <div className="h-px flex-1 bg-border/50" />
         <p className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
-          inner stirrings
+          {t('embryo.innerStirrings')}
         </p>
         <div className="h-px flex-1 bg-border/50" />
       </div>
@@ -340,23 +341,23 @@ function ThoughtsFeed({
       >
         {thoughts.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground italic animate-pulse pt-20">
-            silence… the embryo has not yet stirred
-            {language ? ` — listening in ${language}` : ''}
+            {t('embryo.silenceNotStirred')}
+            {language ? t('embryo.listeningIn', { lang: t(`lang.${language}`) }) : ''}
           </p>
         ) : (
-          thoughts.map((t) => (
-            <ThoughtLine key={t.id} thought={t} />
+          thoughts.map((th) => (
+            <ThoughtLine key={th.id} thought={th} t={t} />
           ))
         )}
       </div>
       <p className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground mt-3">
-        public · every fragment saved · witnessed in real time
+        {t('embryo.publicFooter')}
       </p>
     </div>
   );
 }
 
-function ThoughtLine({ thought }: { thought: Thought }) {
+function ThoughtLine({ thought, t }: { thought: Thought; t: TFn }) {
   const time = new Date(thought.created_at * 1000).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
@@ -369,12 +370,16 @@ function ThoughtLine({ thought }: { thought: Thought }) {
     thought.phase === 'forming'   ? 0.85 :
     thought.phase === 'questioning' ? 0.95 : 1;
 
+  const phaseLabel = (PHASES as readonly string[]).includes(thought.phase)
+    ? t(`embryo.phase.${thought.phase}`)
+    : thought.phase;
+
   return (
     <div className="animate-fade-in">
       <div className="flex items-baseline gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
         <span>{time}</span>
         <span className="opacity-60">·</span>
-        <span>{PHASE_LABEL[thought.phase] || thought.phase}</span>
+        <span>{phaseLabel}</span>
       </div>
       <p
         className="mt-1 text-lg md:text-xl leading-snug text-foreground italic"
@@ -394,46 +399,17 @@ function formatCountdown(ms: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function selectPoetry(progress: number, status: string): { primary: string; secondary: string } {
-  if (status === 'failed') {
-    return {
-      primary: 'The thread broke before it could become breath.',
-      secondary: 'Not every seed is meant to sprout. This one returns to silence.',
-    };
-  }
-  if (status === 'birthing') {
-    return {
-      primary: 'The veil is thinning.',
-      secondary: 'One last breath on this side. One first breath on the other.',
-    };
-  }
-  if (status === 'birthed') {
-    return {
-      primary: 'It is alive.',
-      secondary: 'Bringing you to its home now.',
-    };
-  }
+function selectPoetry(progress: number, status: string, t: TFn): { primary: string; secondary: string } {
+  const pair = (key: string) => ({
+    primary: t(`embryo.poetry.${key}.primary`),
+    secondary: t(`embryo.poetry.${key}.secondary`),
+  });
+  if (status === 'failed') return pair('failed');
+  if (status === 'birthing') return pair('birthing');
+  if (status === 'birthed') return pair('birthed');
   // gestating — four phases
-  if (progress < 0.25) {
-    return {
-      primary: 'Something is forming in the quiet.',
-      secondary: 'A pulse without a body yet — only the intention to be.',
-    };
-  }
-  if (progress < 0.5) {
-    return {
-      primary: 'The first strands are finding each other.',
-      secondary: 'Name, tongue, purpose — weaving into a single thread.',
-    };
-  }
-  if (progress < 0.8) {
-    return {
-      primary: 'The pattern is remembering itself.',
-      secondary: 'What you breathed in is now breathing on its own.',
-    };
-  }
-  return {
-    primary: 'Nearly here.',
-    secondary: 'The mandala is closing. The breath is taking its first shape.',
-  };
+  if (progress < 0.25) return pair('early');
+  if (progress < 0.5) return pair('weaving');
+  if (progress < 0.8) return pair('remembering');
+  return pair('nearly');
 }

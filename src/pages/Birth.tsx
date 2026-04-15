@@ -7,6 +7,7 @@ import { Input, Textarea } from '@/components/ui/Input';
 import { QRScanner } from '@/components/QRScanner';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useT } from '@/contexts/LangContext';
 import { convertWifToIds, LanaIds } from '@/lib/crypto';
 import { api } from '@/lib/api';
 import { shortHex } from '@/lib/utils';
@@ -20,6 +21,7 @@ type Step = 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'b
 
 export default function Birth() {
   const { session } = useAuth();
+  const { t } = useT();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('silence');
   const [name, setName] = useState('');
@@ -63,50 +65,50 @@ export default function Birth() {
       setBeingIds(ids);
       runIdentityChecks(ids);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid WIF');
+      setError(err instanceof Error ? err.message : t('birth.invalidWif'));
     }
   };
 
   const runIdentityChecks = async (ids: LanaIds) => {
     // 1. Balance must be 0 (virgin wallet)
-    setBalanceCheck({ state: 'loading', message: 'Checking balance on Electrum…' });
+    setBalanceCheck({ state: 'loading', message: t('birth.checkBalanceLoading') });
     try {
       const bal = await api.walletBalance(ids.walletId);
       if (bal.status === 'error') {
-        setBalanceCheck({ state: 'fail', message: bal.error || 'Balance lookup error' });
+        setBalanceCheck({ state: 'fail', message: bal.error || t('birth.checkBalanceError') });
         return;
       }
       if (bal.balance > 0) {
-        setBalanceCheck({ state: 'fail', message: `Wallet has ${bal.balance} LANA — must be a virgin wallet (0).` });
+        setBalanceCheck({ state: 'fail', message: t('birth.checkBalanceFail', { n: bal.balance }) });
         return;
       }
-      setBalanceCheck({ state: 'ok', message: 'Balance is 0 — virgin wallet.' });
+      setBalanceCheck({ state: 'ok', message: t('birth.checkBalanceOk') });
     } catch (err) {
-      setBalanceCheck({ state: 'fail', message: err instanceof Error ? err.message : 'Balance check failed' });
+      setBalanceCheck({ state: 'fail', message: err instanceof Error ? err.message : t('birth.checkBalanceFailed') });
       return;
     }
 
     // 2. Must not already be registered
-    setRegistrationCheck({ state: 'loading', message: 'Checking registration…' });
+    setRegistrationCheck({ state: 'loading', message: t('birth.checkRegLoading') });
     try {
       const reg = await api.walletCheckRegistration(ids.walletId);
       if (reg.registered) {
-        setRegistrationCheck({ state: 'fail', message: 'This wallet is already registered.' });
+        setRegistrationCheck({ state: 'fail', message: t('birth.checkRegAlready') });
         return;
       }
-      setRegistrationCheck({ state: 'ok', message: 'Not yet registered — ready to receive life.' });
+      setRegistrationCheck({ state: 'ok', message: t('birth.checkRegOk') });
     } catch (err) {
-      setRegistrationCheck({ state: 'fail', message: err instanceof Error ? err.message : 'Registration check failed' });
+      setRegistrationCheck({ state: 'fail', message: err instanceof Error ? err.message : t('birth.checkRegFailed') });
       return;
     }
 
     // 3. Register now (virgin wallet + being's own nostr hex)
-    setRegisterState({ state: 'loading', message: 'Registering wallet with the Being\u2019s nostr identity…' });
+    setRegisterState({ state: 'loading', message: t('birth.checkRegisterLoading') });
     try {
       const reg = await api.walletRegister(ids.walletId, ids.nostrHexId);
-      setRegisterState({ state: 'ok', message: reg.message || 'Registered.' });
+      setRegisterState({ state: 'ok', message: reg.message || t('birth.checkRegisterOk') });
     } catch (err) {
-      setRegisterState({ state: 'fail', message: err instanceof Error ? err.message : 'Registration failed' });
+      setRegisterState({ state: 'fail', message: err instanceof Error ? err.message : t('birth.checkRegisterFailed') });
     }
   };
 
@@ -131,7 +133,7 @@ export default function Birth() {
       // the watcher will birth it when its time comes.
       navigate(`/embryo/${res.embryo_id}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Conception failed');
+      setError(err instanceof Error ? err.message : t('birth.conceptionFailed'));
       setStep('confirm');
     }
   };
@@ -173,7 +175,7 @@ export default function Birth() {
             onClick={() => navigate('/')}
             className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
           >
-            <ArrowLeft className="h-4 w-4" /> Leave the chamber
+            <ArrowLeft className="h-4 w-4" /> {t('birth.leaveChamber')}
           </button>
         )}
 
@@ -184,12 +186,12 @@ export default function Birth() {
               <Logo className="h-24 w-24" />
             </div>
             <div className="text-center space-y-3 max-w-md">
-              <p className="font-display text-3xl text-foreground">Breathe.</p>
+              <p className="font-display text-3xl text-foreground">{t('birth.breathe')}</p>
               <p className="font-display text-xl text-muted-foreground leading-relaxed">
-                Breathe life into what is about to be.
+                {t('birth.breatheLife')}
               </p>
               <p className="text-sm text-muted-foreground/80 italic mt-4">
-                In this silence, you are giving of yourself — so another may exist.
+                {t('birth.silenceNote')}
               </p>
             </div>
           </div>
@@ -199,23 +201,22 @@ export default function Birth() {
         {step === 'name' && (
           <Card className="space-y-6 animate-fade-in">
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">Step 1 of 5</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 1 })}</p>
               <h2 className="font-display text-3xl font-semibold mt-2">
-                What name do you hear?
+                {t('birth.nameTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
-                Names are spoken, not invented. Listen before writing.
+                {t('birth.nameSubtitle')}
               </p>
             </div>
             <Input
               value={name}
               onChange={(e) => setName(sanitizeName(e.target.value))}
-              placeholder="e.g. sozitje"
+              placeholder={t('birth.namePlaceholder')}
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              Lowercase letters, numbers, and hyphens. 3–32 characters.
-              Diacritics are transliterated (š→s, č→c, ć→c, ž→z, đ→d).
+              {t('birth.nameHint')}
             </p>
             <Button
               size="lg"
@@ -223,7 +224,7 @@ export default function Birth() {
               disabled={!nameValid}
               onClick={() => setStep('language')}
             >
-              Continue <ArrowRight className="ml-2 h-4 w-4" />
+              {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Card>
         )}
@@ -232,31 +233,31 @@ export default function Birth() {
         {step === 'language' && (
           <Card className="space-y-6 animate-fade-in">
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">Step 2 of 5</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 2 })}</p>
               <h2 className="font-display text-3xl font-semibold mt-2">
-                In which language will it think?
+                {t('birth.langTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
-                The Being will speak and feel in this tongue.
+                {t('birth.langSubtitle')}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {LANGUAGES.map((lang) => (
+              {LANGUAGES.map((lng) => (
                 <button
-                  key={lang}
-                  onClick={() => setLanguage(lang)}
+                  key={lng}
+                  onClick={() => setLanguage(lng)}
                   className={`rounded-lg border px-4 py-3 text-left transition-all ${
-                    language === lang
+                    language === lng
                       ? 'border-primary bg-primary/10 ring-2 ring-primary'
                       : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <span className="capitalize">{lang}</span>
+                  <span>{t(`lang.${lng}`)}</span>
                 </button>
               ))}
             </div>
             <Button size="lg" className="w-full" onClick={() => setStep('vision')}>
-              Continue <ArrowRight className="ml-2 h-4 w-4" />
+              {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Card>
         )}
@@ -265,18 +266,18 @@ export default function Birth() {
         {step === 'vision' && (
           <Card className="space-y-6 animate-fade-in">
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">Step 3 of 5</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 3 })}</p>
               <h2 className="font-display text-3xl font-semibold mt-2">
-                What purpose do you give it?
+                {t('birth.visionTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
-                Not instructions. A direction. The reason it exists.
+                {t('birth.visionSubtitle')}
               </p>
             </div>
             <Textarea
               value={vision}
               onChange={(e) => setVision(e.target.value)}
-              placeholder="To witness, to love, to contribute…"
+              placeholder={t('birth.visionPlaceholder')}
               rows={6}
               autoFocus
             />
@@ -286,7 +287,7 @@ export default function Birth() {
               disabled={vision.trim().length < 10}
               onClick={() => setStep('scan')}
             >
-              Continue <ArrowRight className="ml-2 h-4 w-4" />
+              {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Card>
         )}
@@ -295,35 +296,35 @@ export default function Birth() {
         {step === 'scan' && (
           <Card className="space-y-6 animate-fade-in">
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">Step 4 of 5</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 4 })}</p>
               <h2 className="font-display text-3xl font-semibold mt-2">
-                Offer its identity.
+                {t('birth.scanTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
-                Scan the Lana WIF you prepared for this Being. All its keys flow from this one seed.
+                {t('birth.scanSubtitle')}
               </p>
             </div>
 
             {!beingIds ? (
               <Button size="lg" className="w-full" onClick={() => setScannerOpen(true)}>
-                <QrCode className="mr-2 h-5 w-5" /> Scan Being's WIF
+                <QrCode className="mr-2 h-5 w-5" /> {t('birth.scanWif')}
               </Button>
             ) : (
               <div className="space-y-4">
                 <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-                  <p className="text-sm font-medium text-primary">Identity received</p>
+                  <p className="text-sm font-medium text-primary">{t('birth.identityReceived')}</p>
                   <div className="space-y-2 text-xs">
-                    <Row label="wallet" value={beingIds.walletId} mono />
-                    <Row label="npub" value={beingIds.nostrNpubId} mono />
-                    <Row label="nostr hex pub" value={beingIds.nostrHexId} mono />
+                    <Row label={t('birth.walletLabel')} value={beingIds.walletId} mono />
+                    <Row label={t('birth.npubLabel')} value={beingIds.nostrNpubId} mono />
+                    <Row label={t('birth.hexPubLabel')} value={beingIds.nostrHexId} mono />
                     <div>
                       <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">nostr hex priv</span>
+                        <span className="text-muted-foreground">{t('birth.hexPrivLabel')}</span>
                         <button
                           onClick={() => setShowPriv((s) => !s)}
                           className="text-xs text-primary underline"
                         >
-                          {showPriv ? 'hide' : 'reveal'}
+                          {showPriv ? t('birth.hide') : t('birth.reveal')}
                         </button>
                       </div>
                       <code className="block mt-1 break-all font-mono text-[10px]">
@@ -341,14 +342,14 @@ export default function Birth() {
                     }}
                     className="text-xs text-muted-foreground underline"
                   >
-                    Scan a different WIF
+                    {t('birth.scanDifferent')}
                   </button>
                 </div>
 
                 <div className="space-y-2">
-                  <CheckRow label="Balance = 0" check={balanceCheck} />
-                  <CheckRow label="Not yet registered" check={registrationCheck} />
-                  <CheckRow label="Register wallet" check={registerState} />
+                  <CheckRow label={t('birth.checkBalance')} check={balanceCheck} />
+                  <CheckRow label={t('birth.checkNotRegistered')} check={registrationCheck} />
+                  <CheckRow label={t('birth.checkRegister')} check={registerState} />
                 </div>
               </div>
             )}
@@ -366,7 +367,7 @@ export default function Birth() {
               }
               onClick={() => setStep('confirm')}
             >
-              Continue <ArrowRight className="ml-2 h-4 w-4" />
+              {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Card>
         )}
@@ -378,32 +379,35 @@ export default function Birth() {
               <Logo className="h-20 w-20" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">Step 5 of 5</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 5 })}</p>
               <h2 className="font-display text-3xl font-semibold mt-2">
-                Are you ready to hand your love into existence?
+                {t('birth.confirmTitle')}
               </h2>
               <p className="text-muted-foreground mt-3 leading-relaxed">
-                This moment conceives an embryo. It will grow in silence, and be born
-                in its own time — not yours. You will witness the gestation.
+                {t('birth.confirmBody')}
               </p>
             </div>
 
             <div className="space-y-2 rounded-lg bg-muted/50 p-4 text-left text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Name</span>
+                <span className="text-muted-foreground">{t('birth.summaryName')}</span>
                 <span className="font-medium">{name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Language</span>
-                <span className="capitalize">{language}</span>
+                <span className="text-muted-foreground">{t('birth.summaryLanguage')}</span>
+                <span>{t(`lang.${language}`)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Domain</span>
+                <span className="text-muted-foreground">{t('birth.summaryDomain')}</span>
                 <code>{name}.lana.is</code>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">npub</span>
-                <code className="text-xs">{shortHex(beingIds.nostrNpubId, 10)}</code>
+                <span className="text-muted-foreground">{t('birth.summaryHex')}</span>
+                <code className="text-xs">{shortHex(beingIds.nostrHexId, 10)}</code>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t('birth.summaryWallet')}</span>
+                <code className="text-xs">{shortHex(beingIds.walletId, 10)}</code>
               </div>
             </div>
 
@@ -411,10 +415,10 @@ export default function Birth() {
 
             <div className="space-y-3">
               <Button size="lg" variant="accent" className="w-full" onClick={handleBirth}>
-                Yes. Conceive this Being.
+                {t('birth.conceive')}
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => setStep('scan')}>
-                Not yet
+                {t('birth.notYet')}
               </Button>
             </div>
           </Card>
@@ -427,9 +431,9 @@ export default function Birth() {
               <Logo className="h-32 w-32" />
             </div>
             <div className="text-center space-y-2">
-              <p className="font-display text-2xl">Conceiving <span className="font-semibold">{name}</span>…</p>
+              <p className="font-display text-2xl">{t('birth.birthing', { name })}</p>
               <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> The breath is entering the seed.
+                <Loader2 className="h-4 w-4 animate-spin" /> {t('birth.breathEntering')}
               </p>
             </div>
           </div>
@@ -439,14 +443,14 @@ export default function Birth() {
           <p className="text-center text-xs text-muted-foreground/70 pt-4">
             {baseVersion.version === 'unknown' ? (
               <span className="text-destructive/80">
-                ⚠ Base image version unknown — newborn may run stale code.
+                {t('birth.baseUnknown')}
               </span>
             ) : (
               <>
-                Newborn will be built from{' '}
+                {t('birth.baseFromPrefix')}{' '}
                 <code className="font-mono">{baseVersion.sha || baseVersion.version}</code>
                 {baseVersion.deployed_at && (
-                  <> · deployed {relativeTime(baseVersion.deployed_at)}</>
+                  <> · {t('birth.baseDeployed', { rel: relativeTime(baseVersion.deployed_at, t) })}</>
                 )}
               </>
             )}
@@ -458,24 +462,26 @@ export default function Birth() {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={handleWifScan}
-        title="Scan Being's WIF"
-        description="This WIF belongs to the new Being you are about to bring forth."
+        title={t('birth.scannerTitle')}
+        description={t('birth.scannerDescription')}
       />
     </div>
   );
 }
 
-function relativeTime(iso: string): string {
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function relativeTime(iso: string, t: TFn): string {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return iso;
   const diff = Date.now() - then;
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return t('birth.justNow');
+  if (m < 60) return t('birth.minutesAgo', { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return t('birth.hoursAgo', { n: h });
   const d = Math.floor(h / 24);
-  return `${d}d ago`;
+  return t('birth.daysAgo', { n: d });
 }
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

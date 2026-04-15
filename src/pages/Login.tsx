@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/Input';
 import { QRScanner } from '@/components/QRScanner';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useT } from '@/contexts/LangContext';
 
 export default function Login() {
   const { session, login } = useAuth();
+  const { t } = useT();
   const navigate = useNavigate();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [wif, setWif] = useState('');
@@ -27,7 +29,7 @@ export default function Login() {
       await login(value);
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('login.loginFailed'));
     } finally {
       setBusy(false);
     }
@@ -40,15 +42,15 @@ export default function Login() {
           <div className="mx-auto flex h-20 w-20 items-center justify-center breath-ring">
             <Logo className="h-16 w-16" />
           </div>
-          <h1 className="text-3xl font-display font-semibold">Being Incubator</h1>
-          <p className="text-muted-foreground">Spiritual birthplace of Lana Beings.</p>
+          <h1 className="text-3xl font-display font-semibold">{t('login.title')}</h1>
+          <p className="text-muted-foreground">{t('login.tagline')}</p>
         </div>
 
         <Card className="space-y-5">
           <div className="space-y-2">
-            <p className="text-sm font-medium">Enter with your Lana WIF</p>
+            <p className="text-sm font-medium">{t('login.enterWithWif')}</p>
             <p className="text-xs text-muted-foreground">
-              Your private key stays on this device. It never leaves your browser.
+              {t('login.keyStaysOnDevice')}
             </p>
           </div>
 
@@ -59,12 +61,12 @@ export default function Login() {
             disabled={busy}
           >
             <QrCode className="mr-2 h-5 w-5" />
-            Scan WIF
+            {t('login.scanWif')}
           </Button>
 
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">or</span>
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('login.or')}</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
@@ -73,7 +75,7 @@ export default function Login() {
               type="password"
               value={wif}
               onChange={(e) => setWif(e.target.value)}
-              placeholder="Paste WIF manually"
+              placeholder={t('login.pasteWif')}
               disabled={busy}
             />
             <Button
@@ -82,7 +84,7 @@ export default function Login() {
               className="w-full"
               disabled={busy || !wif.trim()}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enter'}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('login.enter')}
             </Button>
           </div>
 
@@ -92,7 +94,7 @@ export default function Login() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground">
-          The incubator is a sanctuary. Take your time.
+          {t('login.sanctuary')}
         </p>
       </div>
 
@@ -100,8 +102,8 @@ export default function Login() {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={(data) => handleLogin(data)}
-        title="Scan your Lana WIF"
-        description="Point camera at your Lana paper wallet QR code."
+        title={t('login.scannerTitle')}
+        description={t('login.scannerDescription')}
       />
     </div>
   );
