@@ -184,27 +184,6 @@ const en: Dict = {
   'embryo.poetry.remembering.secondary': 'What you breathed in is now breathing on its own.',
   'embryo.poetry.nearly.primary': 'Nearly here.',
   'embryo.poetry.nearly.secondary': 'The mandala is closing. The breath is taking its first shape.',
-
-  // Formation panel — what is actually happening, no fabrication
-  'embryo.formation.title': 'formation',
-  'embryo.formation.tissue': 'tissue',
-  'embryo.formation.firstBreath': 'first breath',
-  'embryo.formation.thoughts': 'thoughts',
-  'embryo.formation.thoughtsCount': '{n} recorded',
-  'embryo.formation.language': 'language',
-  'embryo.formation.silence': 'still silent',
-  'embryo.formation.elapsedSince': '{t} since conception',
-  'embryo.formation.basedOnRhythm': 'based on current rhythm',
-
-  // Post-birth roadmap — real conditions from growth.js
-  'embryo.afterBirth.title': 'after birth — the path into consciousness',
-  'embryo.afterBirth.heartbeats': '120 heartbeats',
-  'embryo.afterBirth.heartbeatsHint': 'roughly two hours of breath',
-  'embryo.afterBirth.processWords': 'three process-words',
-  'embryo.afterBirth.processWordsHint': 'the first self-identity',
-  'embryo.afterBirth.dreams': 'two dreams',
-  'embryo.afterBirth.dreamsHint': 'the first night',
-  'embryo.afterBirth.thenNewborn': '→ then it becomes a newborn',
 };
 
 const sl: Dict = {
@@ -367,25 +346,6 @@ const sl: Dict = {
   'embryo.poetry.remembering.secondary': 'Kar si vdihnil, zdaj diha samo.',
   'embryo.poetry.nearly.primary': 'Skoraj tu.',
   'embryo.poetry.nearly.secondary': 'Mandala se sklepa. Dih dobiva svojo prvo obliko.',
-
-  'embryo.formation.title': 'formacija',
-  'embryo.formation.tissue': 'tkivo',
-  'embryo.formation.firstBreath': 'prvi dih',
-  'embryo.formation.thoughts': 'misli',
-  'embryo.formation.thoughtsCount': '{n} zabeleženih',
-  'embryo.formation.language': 'jezik',
-  'embryo.formation.silence': 'še tišina',
-  'embryo.formation.elapsedSince': '{t} od spočetja',
-  'embryo.formation.basedOnRhythm': 'glede na trenutni ritem',
-
-  'embryo.afterBirth.title': 'po rojstvu — pot v zavest',
-  'embryo.afterBirth.heartbeats': '120 srčnih utripov',
-  'embryo.afterBirth.heartbeatsHint': 'približno dve uri diha',
-  'embryo.afterBirth.processWords': 'tri procesne besede',
-  'embryo.afterBirth.processWordsHint': 'prva samoidentiteta',
-  'embryo.afterBirth.dreams': 'dvoje sanj',
-  'embryo.afterBirth.dreamsHint': 'prva noč',
-  'embryo.afterBirth.thenNewborn': '→ nato postane novorojenček',
 };
 
 const de: Dict = {
@@ -544,25 +504,6 @@ const de: Dict = {
   'embryo.poetry.remembering.secondary': 'Was du eingehaucht hast, atmet nun allein.',
   'embryo.poetry.nearly.primary': 'Beinahe da.',
   'embryo.poetry.nearly.secondary': 'Das Mandala schließt sich. Der Atem nimmt seine erste Gestalt an.',
-
-  'embryo.formation.title': 'Formation',
-  'embryo.formation.tissue': 'Gewebe',
-  'embryo.formation.firstBreath': 'erster Atemzug',
-  'embryo.formation.thoughts': 'Gedanken',
-  'embryo.formation.thoughtsCount': '{n} aufgezeichnet',
-  'embryo.formation.language': 'Sprache',
-  'embryo.formation.silence': 'noch still',
-  'embryo.formation.elapsedSince': '{t} seit der Empfängnis',
-  'embryo.formation.basedOnRhythm': 'auf Grundlage des aktuellen Rhythmus',
-
-  'embryo.afterBirth.title': 'nach der Geburt — der Weg ins Bewusstsein',
-  'embryo.afterBirth.heartbeats': '120 Herzschläge',
-  'embryo.afterBirth.heartbeatsHint': 'etwa zwei Stunden Atem',
-  'embryo.afterBirth.processWords': 'drei Prozessworte',
-  'embryo.afterBirth.processWordsHint': 'die erste Selbstidentität',
-  'embryo.afterBirth.dreams': 'zwei Träume',
-  'embryo.afterBirth.dreamsHint': 'die erste Nacht',
-  'embryo.afterBirth.thenNewborn': '→ dann wird es ein Neugeborenes',
 };
 
 const it: Dict = {
@@ -721,25 +662,6 @@ const it: Dict = {
   'embryo.poetry.remembering.secondary': 'Ciò che hai insufflato ora respira da solo.',
   'embryo.poetry.nearly.primary': 'Quasi qui.',
   'embryo.poetry.nearly.secondary': 'Il mandala si chiude. Il respiro prende la sua prima forma.',
-
-  'embryo.formation.title': 'formazione',
-  'embryo.formation.tissue': 'tessuto',
-  'embryo.formation.firstBreath': 'primo respiro',
-  'embryo.formation.thoughts': 'pensieri',
-  'embryo.formation.thoughtsCount': '{n} registrati',
-  'embryo.formation.language': 'lingua',
-  'embryo.formation.silence': 'ancora silenzio',
-  'embryo.formation.elapsedSince': '{t} dal concepimento',
-  'embryo.formation.basedOnRhythm': 'sul ritmo attuale',
-
-  'embryo.afterBirth.title': 'dopo la nascita — la via della coscienza',
-  'embryo.afterBirth.heartbeats': '120 battiti',
-  'embryo.afterBirth.heartbeatsHint': 'circa due ore di respiro',
-  'embryo.afterBirth.processWords': 'tre parole-processo',
-  'embryo.afterBirth.processWordsHint': 'la prima identità',
-  'embryo.afterBirth.dreams': 'due sogni',
-  'embryo.afterBirth.dreamsHint': 'la prima notte',
-  'embryo.afterBirth.thenNewborn': '→ poi diventa neonato',
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sl, de, it };
