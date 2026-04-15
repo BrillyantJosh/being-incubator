@@ -75,6 +75,41 @@ export default function Dashboard() {
           <Card>
             <p className="text-center text-muted-foreground">Listening…</p>
           </Card>
+        ) : embryo && embryo.status === 'failed' ? (
+          <Card className="space-y-5 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-destructive/40">
+              <Logo className="h-16 w-16 opacity-60" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.25em] text-destructive">The thread broke</p>
+              <h2 className="font-display text-3xl font-semibold">{embryo.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                This embryo could not cross over. You may release it and try again.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => navigate(`/embryo/${embryo.id}`)}
+              >
+                See what happened
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={async () => {
+                  try {
+                    await api.abandonEmbryo(embryo.id, session.nostrHexId);
+                    window.location.reload();
+                  } catch (err) {
+                    alert('Could not release the embryo: ' + (err as Error).message);
+                  }
+                }}
+              >
+                Release & retry
+              </Button>
+            </div>
+          </Card>
         ) : embryo ? (
           <Card className="space-y-5 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center heartbeat-ring rounded-full">

@@ -84,6 +84,8 @@ Output only the fragment. Nothing else.`;
 async function generateWithGemini(prompt: string): Promise<string | null> {
   if (!GEMINI_KEY) return null;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -92,6 +94,7 @@ async function generateWithGemini(prompt: string): Promise<string | null> {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 1.1, maxOutputTokens: 80, topP: 0.95 },
       }),
+      signal: controller.signal,
     });
     if (!res.ok) {
       console.error('[thoughts] gemini error', res.status, (await res.text()).slice(0, 200));
@@ -100,10 +103,17 @@ async function generateWithGemini(prompt: string): Promise<string | null> {
     const data: any = await res.json();
     const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) return null;
-    return text.trim().replace(/^["'`]+|["'`]+$/g, '').slice(0, 280);
+    const cleaned = text.trim().replace(/^["'`]+|["'`]+$/g, '').slice(0, 280);
+    return cleaned.length > 0 ? cleaned : null;
   } catch (err: any) {
-    console.error('[thoughts] gemini fetch failed:', err?.message);
+    if (err?.name === 'AbortError') {
+      console.error('[thoughts] gemini timed out after 8s');
+    } else {
+      console.error('[thoughts] gemini fetch failed:', err?.message);
+    }
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -152,13 +162,15 @@ async function tick() {
   ticking = true;
   try {
     const embryos = statements.getGestatingEmbryos.all() as GestatingRow[];
-    for (const e of embryos) {
-      try {
-        await generateForEmbryo(e);
-      } catch (err: any) {
-        console.error(`[thoughts] generate failed for ${e.name}:`, err?.message);
-      }
-    }
+    // Run all embryos in parallel so a slow API call for one doesn't
+    // block the others. Each has its own 8s fetch timeout.
+    await Promise.allSettled(
+      embryos.map((e) =>
+        generateForEmbryo(e).catch((err) => {
+          console.error(`[thoughts] generate failed for ${e.name}:`, err?.message);
+        }),
+      ),
+    );
   } finally {
     ticking = false;
   }

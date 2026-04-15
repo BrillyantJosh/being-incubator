@@ -86,6 +86,12 @@ export const api = {
       }>;
     }>(`/api/embryo/${encodeURIComponent(id)}/thoughts${since ? `?since=${since}` : ''}`),
 
+  abandonEmbryo: (id: string, owner_hex: string) =>
+    request<{ ok: true }>(`/api/embryo/${encodeURIComponent(id)}/abandon`, {
+      method: 'POST',
+      body: JSON.stringify({ owner_hex }),
+    }),
+
   health: () => request<{ ok: true; beings: number; version: string }>('/health'),
 
   walletBalance: (address: string) =>

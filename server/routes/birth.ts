@@ -13,6 +13,17 @@ const MAX_GESTATION_MS = 7 * 86400_000; // 7 days
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
 const HEX64_RE = /^[0-9a-f]{64}$/i;
+const WIF_RE = /^[5KL9c][a-zA-Z0-9]{50,51}$/;
+
+// Subdomains that would collide with Lana infrastructure or standard DNS conventions.
+const RESERVED_NAMES = new Set([
+  'www', 'api', 'admin', 'mail', 'smtp', 'imap', 'pop', 'pop3',
+  'incubator', 'localhost', 'root', 'ns', 'ns1', 'ns2', 'dns',
+  'ftp', 'sftp', 'ssh', 'git', 'vpn', 'proxy', 'webmail',
+  'relay', 'relays', 'lana', 'lanavault', 'vault', 'wallet',
+  'pays', 'paper', 'nostr', 'test', 'staging', 'dev', 'prod',
+  'production', 'status', 'monitor', 'grafana', 'prometheus',
+]);
 
 birthRouter.post('/beings/birth', async (req, res) => {
   const body = req.body || {};
@@ -34,6 +45,13 @@ birthRouter.post('/beings/birth', async (req, res) => {
   if (!HEX64_RE.test(owner_hex || '')) return res.status(400).json({ error: 'Invalid owner_hex' });
   if (typeof name !== 'string' || !NAME_RE.test(name)) {
     return res.status(400).json({ error: 'Invalid name (3-32 chars, lowercase, a-z 0-9 -)' });
+  }
+  if (RESERVED_NAMES.has(name)) {
+    return res.status(400).json({ error: 'That name is reserved. Please choose another.' });
+  }
+  if (being_wif !== undefined && being_wif !== null && being_wif !== '' &&
+      (typeof being_wif !== 'string' || !WIF_RE.test(being_wif))) {
+    return res.status(400).json({ error: 'Invalid Lana WIF format' });
   }
   if (!HEX64_RE.test(being_hex_priv || '') || !HEX64_RE.test(being_hex_pub || '')) {
     return res.status(400).json({ error: 'Invalid being hex keys' });

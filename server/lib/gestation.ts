@@ -7,7 +7,7 @@
  * actual moment of birth (which happens in its own time, in silence).
  */
 import { spawn } from 'child_process';
-import { statements } from '../db';
+import { db, statements } from '../db';
 import { publishBirthCertificate } from './publish';
 
 const BIRTH_SCRIPT = process.env.BIRTH_SCRIPT || '/opt/beings/incubator/birth.sh';
@@ -100,27 +100,38 @@ async function birthEmbryo(e: EmbryoRow) {
     // non-fatal — being is alive even if certificate not on relays
   }
 
-  // Insert into beings_owners + mark embryo birthed
+  // Atomically record the birth: beings_owners insert + embryo completion
+  // must succeed or fail together. Otherwise we'd leave the embryo
+  // marked 'birthing' forever with a ghost container running.
+  const birthedAt = Math.floor(Date.now() / 1000);
   try {
-    statements.insertBeing.run({
-      owner_hex: e.father_hex,
-      being_name: e.name,
-      being_npub: e.npub,
-      being_domain: e.domain,
-      language: e.language,
-      vision: e.vision,
-      birthed_at: Math.floor(Date.now() / 1000),
+    const finalize = db.transaction(() => {
+      statements.insertBeing.run({
+        owner_hex: e.father_hex,
+        being_name: e.name,
+        being_npub: e.npub,
+        being_domain: e.domain,
+        language: e.language,
+        vision: e.vision,
+        birthed_at: birthedAt,
+      });
+      statements.completeEmbryoBirth.run({
+        id: e.id,
+        birthed_at: birthedAt,
+        birth_logs: logs,
+        event_id,
+      });
     });
+    finalize();
   } catch (err: any) {
-    console.error(`[gestation] ⚠︎ could not insert beings_owners for ${e.name}:`, err.message);
+    console.error(`[gestation] ⚠︎ could not finalize birth for ${e.name}:`, err.message);
+    statements.failEmbryoBirth.run({
+      id: e.id,
+      error: `finalize failed: ${err.message}`,
+      birth_logs: logs,
+    });
+    return;
   }
-
-  statements.completeEmbryoBirth.run({
-    id: e.id,
-    birthed_at: Math.floor(Date.now() / 1000),
-    birth_logs: logs,
-    event_id,
-  });
 
   console.log(`[gestation] ✅ ${e.name} is alive at https://${e.domain}`);
 }
@@ -142,6 +153,17 @@ async function tick() {
 }
 
 export function startEmbryoWatcher() {
+  // Recover embryos that were mid-birth when the server crashed.
+  // They go back to 'gestating' so the watcher will retry them.
+  try {
+    const r = statements.recoverStuckBirthing.run();
+    if (r.changes > 0) {
+      console.log(`[gestation] recovered ${r.changes} stuck 'birthing' embryo(s) → gestating`);
+    }
+  } catch (err: any) {
+    console.error('[gestation] recovery failed:', err?.message);
+  }
+
   console.log(`[gestation] watcher starting (check every ${CHECK_INTERVAL_MS / 1000}s)`);
   setInterval(tick, CHECK_INTERVAL_MS);
   // Also tick once shortly after boot, in case a birth was due while we were down

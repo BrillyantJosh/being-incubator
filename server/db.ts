@@ -222,6 +222,15 @@ export const statements = {
 
   deleteEmbryo: db.prepare(`DELETE FROM beings_embryos WHERE id = ?`),
 
+  // Recover any embryos marked 'birthing' but never completed —
+  // happens if the process crashed mid-birth. They come back as
+  // 'gestating' one more time, the watcher will retry.
+  recoverStuckBirthing: db.prepare(`
+    UPDATE beings_embryos
+    SET status = 'gestating'
+    WHERE status = 'birthing' AND birthed_at IS NULL
+  `),
+
   // ── Embryo thoughts ──────────────────────────────────────
   insertThought: db.prepare(`
     INSERT INTO embryo_thoughts (embryo_id, created_at, phase, progress, content)
