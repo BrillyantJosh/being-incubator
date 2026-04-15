@@ -71,6 +71,21 @@ export const api = {
       now: number;
     }>(`/api/embryo/${encodeURIComponent(id)}`),
 
+  getEmbryoThoughts: (id: string, since = 0) =>
+    request<{
+      embryo_id: string;
+      name: string;
+      language: string | null;
+      count: number;
+      thoughts: Array<{
+        id: number;
+        created_at: number;
+        phase: 'sensation' | 'fragment' | 'forming' | 'questioning' | 'recognition';
+        progress: number;
+        content: string;
+      }>;
+    }>(`/api/embryo/${encodeURIComponent(id)}/thoughts${since ? `?since=${since}` : ''}`),
+
   health: () => request<{ ok: true; beings: number; version: string }>('/health'),
 
   walletBalance: (address: string) =>

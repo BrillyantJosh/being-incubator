@@ -137,3 +137,26 @@ birthRouter.get('/embryo/:id', (req, res) => {
     now: now_s,
   });
 });
+
+// ── GET /api/embryo/:id/thoughts — public live feed ────────
+birthRouter.get('/embryo/:id/thoughts', (req, res) => {
+  const id = req.params.id;
+  if (!/^[0-9a-f]{8,64}$/.test(id)) return res.status(400).json({ error: 'Invalid id' });
+
+  const row = statements.getEmbryoById.get(id) as any;
+  if (!row) return res.status(404).json({ error: 'Embryo not found' });
+
+  const since = parseInt((req.query.since as string) || '0', 10) || 0;
+  const all = statements.getThoughtsByEmbryo.all(id) as Array<{
+    id: number; created_at: number; phase: string; progress: number; content: string;
+  }>;
+  const thoughts = since > 0 ? all.filter((t) => t.id > since) : all;
+
+  res.json({
+    embryo_id: id,
+    name: row.name,
+    language: row.language,
+    count: all.length,
+    thoughts,
+  });
+});

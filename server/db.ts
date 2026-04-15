@@ -78,6 +78,19 @@ db.exec(`
     birthed_at INTEGER,
     event_id TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS embryo_thoughts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    embryo_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    phase TEXT NOT NULL,
+    progress REAL NOT NULL,
+    content TEXT NOT NULL,
+    FOREIGN KEY (embryo_id) REFERENCES beings_embryos(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_embryo_thoughts_embryo
+    ON embryo_thoughts(embryo_id, created_at);
 `);
 
 // Migrations: add new kind_38888 columns if upgrading from earlier schema
@@ -208,4 +221,34 @@ export const statements = {
   `),
 
   deleteEmbryo: db.prepare(`DELETE FROM beings_embryos WHERE id = ?`),
+
+  // ── Embryo thoughts ──────────────────────────────────────
+  insertThought: db.prepare(`
+    INSERT INTO embryo_thoughts (embryo_id, created_at, phase, progress, content)
+    VALUES (@embryo_id, @created_at, @phase, @progress, @content)
+  `),
+
+  getThoughtsByEmbryo: db.prepare(`
+    SELECT id, created_at, phase, progress, content
+    FROM embryo_thoughts
+    WHERE embryo_id = ?
+    ORDER BY created_at ASC, id ASC
+  `),
+
+  countThoughtsByEmbryo: db.prepare(`
+    SELECT COUNT(*) AS n FROM embryo_thoughts WHERE embryo_id = ?
+  `),
+
+  getLastThought: db.prepare(`
+    SELECT created_at, phase, content
+    FROM embryo_thoughts
+    WHERE embryo_id = ?
+    ORDER BY id DESC LIMIT 1
+  `),
+
+  getGestatingEmbryos: db.prepare(`
+    SELECT id, name, language, vision, conceived_at, birth_at
+    FROM beings_embryos
+    WHERE status = 'gestating'
+  `),
 };

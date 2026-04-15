@@ -5,6 +5,7 @@ import fs from 'fs';
 import { statements } from './db';
 import { startHeartbeat } from './heartbeat';
 import { startEmbryoWatcher } from './lib/gestation';
+import { startThoughtGenerator } from './lib/thoughts';
 import { profileLookupRouter } from './routes/profile-lookup';
 import { usersRouter } from './routes/users';
 import { beingsRouter } from './routes/beings';
@@ -42,4 +43,5 @@ app.listen(PORT, () => {
   console.log(`◈ Being Incubator server listening on :${PORT}`);
   startHeartbeat();
   startEmbryoWatcher();
+  startThoughtGenerator();
 });

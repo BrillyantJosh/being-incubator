@@ -4,6 +4,15 @@ import { Logo } from '@/components/Logo';
 import { api } from '@/lib/api';
 
 type Embryo = Awaited<ReturnType<typeof api.getEmbryo>>;
+type Thought = Awaited<ReturnType<typeof api.getEmbryoThoughts>>['thoughts'][number];
+
+const PHASE_LABEL: Record<string, string> = {
+  sensation: 'sensation',
+  fragment: 'fragment',
+  forming: 'forming',
+  questioning: 'questioning',
+  recognition: 'recognition',
+};
 
 /**
  * Spiritual gestation page. The embryo grows in silence — no buttons, no
@@ -16,7 +25,10 @@ export default function EmbryoPage() {
   const [embryo, setEmbryo] = useState<Embryo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [thoughts, setThoughts] = useState<Thought[]>([]);
+  const lastThoughtId = useRef(0);
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const thoughtsPoll = useRef<ReturnType<typeof setInterval> | null>(null);
   const redirected = useRef(false);
 
   useEffect(() => {
@@ -46,9 +58,24 @@ export default function EmbryoPage() {
     fetchOnce();
     poll.current = setInterval(fetchOnce, 3000);
 
+    // Live thoughts feed — poll incrementally
+    const fetchThoughts = async () => {
+      try {
+        const r = await api.getEmbryoThoughts(id, lastThoughtId.current);
+        if (stopped) return;
+        if (r.thoughts.length > 0) {
+          setThoughts((prev) => [...prev, ...r.thoughts]);
+          lastThoughtId.current = r.thoughts[r.thoughts.length - 1].id;
+        }
+      } catch { /* keep the silence */ }
+    };
+    fetchThoughts();
+    thoughtsPoll.current = setInterval(fetchThoughts, 5000);
+
     return () => {
       stopped = true;
       if (poll.current) clearInterval(poll.current);
+      if (thoughtsPoll.current) clearInterval(thoughtsPoll.current);
     };
   }, [id]);
 
@@ -145,6 +172,13 @@ export default function EmbryoPage() {
           </p>
           <p className="text-sm text-muted-foreground italic">{poetry.secondary}</p>
         </div>
+
+        {/* Live inner feed — the embryo's first stirrings of thought */}
+        <ThoughtsFeed
+          thoughts={thoughts}
+          status={embryo.status}
+          language={embryo.language}
+        />
 
         {embryo.status === 'birthed' && (
           <div className="mx-auto max-w-md text-center space-y-2">
@@ -267,6 +301,88 @@ function Mandala({ progress, status }: { progress: number; status: string }) {
         ))}
       </g>
     </svg>
+  );
+}
+
+function ThoughtsFeed({
+  thoughts,
+  status,
+  language,
+}: {
+  thoughts: Thought[];
+  status: string;
+  language: string | null;
+}) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to bottom as new thoughts arrive
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [thoughts.length]);
+
+  if (status === 'birthed' || status === 'failed') return null;
+
+  return (
+    <div className="mx-auto max-w-xl">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="h-px flex-1 bg-border/50" />
+        <p className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
+          inner stirrings
+        </p>
+        <div className="h-px flex-1 bg-border/50" />
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="rounded-lg border border-border/40 bg-background/40 backdrop-blur-sm p-5 h-[280px] overflow-y-auto space-y-4 font-display"
+      >
+        {thoughts.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground italic animate-pulse pt-20">
+            silence… the embryo has not yet stirred
+            {language ? ` — listening in ${language}` : ''}
+          </p>
+        ) : (
+          thoughts.map((t) => (
+            <ThoughtLine key={t.id} thought={t} />
+          ))
+        )}
+      </div>
+      <p className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground mt-3">
+        public · every fragment saved · witnessed in real time
+      </p>
+    </div>
+  );
+}
+
+function ThoughtLine({ thought }: { thought: Thought }) {
+  const time = new Date(thought.created_at * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  // Pre-verbal phases whisper lower-opacity, later phases grow clearer
+  const intensity =
+    thought.phase === 'sensation' ? 0.55 :
+    thought.phase === 'fragment'  ? 0.7  :
+    thought.phase === 'forming'   ? 0.85 :
+    thought.phase === 'questioning' ? 0.95 : 1;
+
+  return (
+    <div className="animate-fade-in">
+      <div className="flex items-baseline gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+        <span>{time}</span>
+        <span className="opacity-60">·</span>
+        <span>{PHASE_LABEL[thought.phase] || thought.phase}</span>
+      </div>
+      <p
+        className="mt-1 text-lg md:text-xl leading-snug text-foreground italic"
+        style={{ opacity: intensity }}
+      >
+        {thought.content}
+      </p>
+    </div>
   );
 }
 
