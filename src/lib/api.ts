@@ -21,9 +21,10 @@ export const api = {
     request<{ ok: true }>('/api/users', { method: 'POST', body: JSON.stringify(u) }),
 
   getBeing: (ownerHex: string) =>
-    request<{ being: null | {
-      name: string; npub: string; domain: string; birthed_at: number;
-    } }>(`/api/beings?owner=${encodeURIComponent(ownerHex)}`),
+    request<{
+      being: null | { name: string; npub: string; domain: string; birthed_at: number };
+      embryo: null | { id: string; name: string; domain: string; conceived_at: number; birth_at: number; status: string };
+    }>(`/api/beings?owner=${encodeURIComponent(ownerHex)}`),
 
   birth: (payload: {
     owner_hex: string;
@@ -36,19 +37,39 @@ export const api = {
     being_hex_pub: string;
     being_wif?: string;
     being_wallet?: string;
+    gestation_ms?: number;
   }) =>
     request<{
       ok: true;
+      embryo_id: string;
+      name: string;
       domain: string;
-      logs: string;
-      certificate: null | {
-        event_id: string;
-        relays: Array<{ url: string; accepted: boolean; reason?: string }>;
-      };
+      conceived_at: number;
+      birth_at: number;
+      gestation_ms: number;
     }>('/api/beings/birth', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  getEmbryo: (id: string) =>
+    request<{
+      id: string;
+      name: string;
+      domain: string;
+      npub: string;
+      language: string;
+      vision: string;
+      conceived_at: number;
+      birth_at: number;
+      birthed_at: number | null;
+      status: 'gestating' | 'birthing' | 'birthed' | 'failed';
+      progress: number;
+      time_remaining_ms: number;
+      event_id: string | null;
+      birth_error: string | null;
+      now: number;
+    }>(`/api/embryo/${encodeURIComponent(id)}`),
 
   health: () => request<{ ok: true; beings: number; version: string }>('/health'),
 

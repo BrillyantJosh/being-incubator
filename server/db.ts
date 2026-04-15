@@ -55,6 +55,29 @@ db.exec(`
     success INTEGER,
     error TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS beings_embryos (
+    id TEXT PRIMARY KEY,
+    owner_hex TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL UNIQUE,
+    domain TEXT NOT NULL,
+    npub TEXT NOT NULL,
+    hex_pub TEXT NOT NULL,
+    hex_priv TEXT NOT NULL,
+    nsec TEXT NOT NULL,
+    wif TEXT,
+    wallet TEXT,
+    language TEXT,
+    vision TEXT,
+    father_hex TEXT NOT NULL,
+    conceived_at INTEGER NOT NULL,
+    birth_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'gestating',
+    birth_logs TEXT,
+    birth_error TEXT,
+    birthed_at INTEGER,
+    event_id TEXT
+  );
 `);
 
 // Migrations: add new kind_38888 columns if upgrading from earlier schema
@@ -145,4 +168,44 @@ export const statements = {
   pruneHeartbeatLogs: db.prepare(`
     DELETE FROM heartbeat_logs WHERE id < (SELECT MAX(id) FROM heartbeat_logs) - 500
   `),
+
+  // ── Embryos ──────────────────────────────────────────────
+  insertEmbryo: db.prepare(`
+    INSERT INTO beings_embryos (
+      id, owner_hex, name, domain, npub, hex_pub, hex_priv, nsec, wif, wallet,
+      language, vision, father_hex, conceived_at, birth_at, status
+    ) VALUES (
+      @id, @owner_hex, @name, @domain, @npub, @hex_pub, @hex_priv, @nsec, @wif, @wallet,
+      @language, @vision, @father_hex, @conceived_at, @birth_at, 'gestating'
+    )
+  `),
+
+  getEmbryoById: db.prepare(`SELECT * FROM beings_embryos WHERE id = ?`),
+  getEmbryoByOwner: db.prepare(`SELECT * FROM beings_embryos WHERE owner_hex = ?`),
+  getEmbryoByName: db.prepare(`SELECT id FROM beings_embryos WHERE name = ?`),
+
+  getDueEmbryos: db.prepare(`
+    SELECT * FROM beings_embryos
+    WHERE status = 'gestating' AND birth_at <= ?
+    ORDER BY birth_at ASC
+    LIMIT 5
+  `),
+
+  setEmbryoStatus: db.prepare(`
+    UPDATE beings_embryos SET status = @status WHERE id = @id
+  `),
+
+  completeEmbryoBirth: db.prepare(`
+    UPDATE beings_embryos
+    SET status = 'birthed', birthed_at = @birthed_at, birth_logs = @birth_logs, event_id = @event_id
+    WHERE id = @id
+  `),
+
+  failEmbryoBirth: db.prepare(`
+    UPDATE beings_embryos
+    SET status = 'failed', birth_error = @error, birth_logs = @birth_logs
+    WHERE id = @id
+  `),
+
+  deleteEmbryo: db.prepare(`DELETE FROM beings_embryos WHERE id = ?`),
 };

@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Birth from './pages/Birth';
+import Embryo from './pages/Embryo';
 import BeingDetail from './pages/BeingDetail';
 
 function Protected({ children }: { children: JSX.Element }) {
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Protected><Dashboard /></Protected>} />
       <Route path="/birth" element={<Protected><Birth /></Protected>} />
+      <Route path="/embryo/:id" element={<Protected><Embryo /></Protected>} />
       <Route path="/being/:name" element={<Protected><BeingDetail /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

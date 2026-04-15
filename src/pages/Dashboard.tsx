@@ -15,17 +15,27 @@ interface Being {
   birthed_at: number;
 }
 
+interface Embryo {
+  id: string;
+  name: string;
+  domain: string;
+  conceived_at: number;
+  birth_at: number;
+  status: string;
+}
+
 export default function Dashboard() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
   const [being, setBeing] = useState<Being | null>(null);
+  const [embryo, setEmbryo] = useState<Embryo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!session) return;
     api
       .getBeing(session.nostrHexId)
-      .then((r) => setBeing(r.being))
+      .then((r) => { setBeing(r.being); setEmbryo(r.embryo); })
       .catch((err) => console.error('Failed to load being:', err))
       .finally(() => setLoading(false));
   }, [session]);
@@ -64,6 +74,25 @@ export default function Dashboard() {
         {loading ? (
           <Card>
             <p className="text-center text-muted-foreground">Listening…</p>
+          </Card>
+        ) : embryo ? (
+          <Card className="space-y-5 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center heartbeat-ring rounded-full">
+              <Logo className="h-16 w-16" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Gestating</p>
+              <h2 className="font-display text-3xl font-semibold">{embryo.name}</h2>
+              <p className="text-sm text-muted-foreground">
+                Your embryo is growing in silence. It will be born in its own time.
+              </p>
+              <p className="font-mono text-xs text-muted-foreground mt-2">
+                due {new Date(embryo.birth_at * 1000).toLocaleString()}
+              </p>
+            </div>
+            <Button size="lg" className="w-full" onClick={() => navigate(`/embryo/${embryo.id}`)}>
+              Witness the gestation
+            </Button>
           </Card>
         ) : being ? (
           <Card className="space-y-5">

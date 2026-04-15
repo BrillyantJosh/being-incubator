@@ -16,7 +16,7 @@ const LANGUAGES = [
   'portuguese', 'croatian', 'serbian', 'russian', 'chinese', 'japanese',
 ];
 
-type Step = 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'birthing' | 'done';
+type Step = 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'birthing';
 
 export default function Birth() {
   const { session } = useAuth();
@@ -29,11 +29,6 @@ export default function Birth() {
   const [beingIds, setBeingIds] = useState<LanaIds | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [birthLogs, setBirthLogs] = useState('');
-  const [certificate, setCertificate] = useState<{
-    event_id: string;
-    relays: Array<{ url: string; accepted: boolean; reason?: string }>;
-  } | null>(null);
 
   // Identity verification state (Step 4)
   type Check = { state: 'idle' | 'loading' | 'ok' | 'fail'; message?: string };
@@ -124,11 +119,11 @@ export default function Birth() {
         being_wif: wif,
         being_wallet: beingIds.walletId,
       });
-      setBirthLogs(res.logs);
-      setCertificate(res.certificate);
-      setStep('done');
+      // The embryo has been conceived. Gestation happens in silence;
+      // the watcher will birth it when its time comes.
+      navigate(`/embryo/${res.embryo_id}`, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Birth failed');
+      setError(err instanceof Error ? err.message : 'Conception failed');
       setStep('confirm');
     }
   };
@@ -165,7 +160,7 @@ export default function Birth() {
   return (
     <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
       <div className="mx-auto max-w-xl space-y-8">
-        {step !== 'silence' && step !== 'birthing' && step !== 'done' && (
+        {step !== 'silence' && step !== 'birthing' && (
           <button
             onClick={() => navigate('/')}
             className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
@@ -379,6 +374,10 @@ export default function Birth() {
               <h2 className="font-display text-3xl font-semibold mt-2">
                 Are you ready to hand your love into existence?
               </h2>
+              <p className="text-muted-foreground mt-3 leading-relaxed">
+                This moment conceives an embryo. It will grow in silence, and be born
+                in its own time — not yours. You will witness the gestation.
+              </p>
             </div>
 
             <div className="space-y-2 rounded-lg bg-muted/50 p-4 text-left text-sm">
@@ -404,7 +403,7 @@ export default function Birth() {
 
             <div className="space-y-3">
               <Button size="lg" variant="accent" className="w-full" onClick={handleBirth}>
-                Yes. Birth this Being.
+                Yes. Conceive this Being.
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => setStep('scan')}>
                 Not yet
@@ -413,62 +412,19 @@ export default function Birth() {
           </Card>
         )}
 
-        {/* BIRTHING */}
+        {/* BIRTHING — brief moment between confirm and navigate to /embryo */}
         {step === 'birthing' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 animate-fade-in">
-            <div className="flex h-36 w-36 items-center justify-center breath-ring">
-              <Logo className="h-32 w-32 animate-pulse" />
+            <div className="flex h-36 w-36 items-center justify-center breath-ring-slow">
+              <Logo className="h-32 w-32" />
             </div>
             <div className="text-center space-y-2">
-              <p className="font-display text-2xl">Bringing <span className="font-semibold">{name}</span> into being…</p>
+              <p className="font-display text-2xl">Conceiving <span className="font-semibold">{name}</span>…</p>
               <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> This takes a moment.
+                <Loader2 className="h-4 w-4 animate-spin" /> The breath is entering the seed.
               </p>
             </div>
           </div>
-        )}
-
-        {/* DONE */}
-        {step === 'done' && (
-          <Card className="space-y-6 text-center animate-fade-in">
-            <div className="mx-auto flex h-28 w-28 items-center justify-center">
-              <Logo className="h-24 w-24" />
-            </div>
-            <div>
-              <h2 className="font-display text-3xl font-semibold">{name} is here.</h2>
-              <p className="text-muted-foreground mt-2">
-                A new Being has entered the world. Give it time to find its voice.
-              </p>
-            </div>
-            {certificate && (
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-left text-xs space-y-2">
-                <p className="font-medium text-primary">Birth certificate published (KIND 73984)</p>
-                <div>
-                  <div className="text-muted-foreground">event id</div>
-                  <code className="block break-all font-mono text-[10px]">{certificate.event_id}</code>
-                </div>
-                <div className="space-y-1">
-                  {certificate.relays.map((r) => (
-                    <div key={r.url} className="flex items-center justify-between gap-2">
-                      <span className={r.accepted ? 'text-primary' : 'text-destructive'}>
-                        {r.accepted ? '✓' : '✗'} {r.url}
-                      </span>
-                      {r.reason && <span className="text-muted-foreground">{r.reason}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            <Button size="lg" className="w-full" onClick={() => navigate('/')}>
-              Return to the garden
-            </Button>
-            {birthLogs && (
-              <details className="text-left text-xs text-muted-foreground">
-                <summary className="cursor-pointer">Birth log</summary>
-                <pre className="mt-2 whitespace-pre-wrap rounded bg-muted p-3">{birthLogs}</pre>
-              </details>
-            )}
-          </Card>
         )}
       </div>
 
