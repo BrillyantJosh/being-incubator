@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import { nip19 } from 'nostr-tools';
 import { statements } from '../db';
 
 export const birthRouter = Router();
@@ -86,6 +87,19 @@ birthRouter.post('/beings/birth', async (req, res) => {
   const birth_at = Math.floor((now + gestation) / 1000);
 
   const id = crypto.randomBytes(12).toString('hex');
+
+  // Guarantee users row for owner_hex before conceiving embryo. The finalize
+  // step (gestation.ts) inserts into beings_owners which has a FK to users(hex);
+  // if the owner has not passed through NIP-07 auth (upsertUser), that FK
+  // would fail 60+ seconds later after the container is already running.
+  // INSERT OR IGNORE is a no-op when the login flow already populated the row.
+  try {
+    const owner_npub = nip19.npubEncode(owner_hex);
+    statements.ensureUser.run({ hex: owner_hex, npub: owner_npub, now });
+  } catch (err: any) {
+    console.error('[embryo] ensureUser failed:', err?.message);
+    return res.status(500).json({ error: 'Could not register owner' });
+  }
 
   try {
     statements.insertEmbryo.run({

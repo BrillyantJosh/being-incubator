@@ -138,6 +138,15 @@ export const statements = {
     VALUES (@owner_hex, @being_name, @being_npub, @being_domain, @language, @vision, @birthed_at)
   `),
 
+  // Guarantee a users row exists for owner_hex so the FK on beings_owners
+  // can never fail at finalize. Real login flow (upsertUser) populates the
+  // full row; this is a safety net when birth is reached without prior auth
+  // (e.g. API-driven tests, or any path that bypasses NIP-07 upsert).
+  ensureUser: db.prepare(`
+    INSERT OR IGNORE INTO users (hex, npub, first_seen, last_seen)
+    VALUES (@hex, @npub, @now, @now)
+  `),
+
   countBeings: db.prepare(`SELECT COUNT(*) AS n FROM beings_owners`),
 
   upsertKind38888: db.prepare(`
