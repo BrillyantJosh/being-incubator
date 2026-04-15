@@ -62,4 +62,8 @@
     box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
     animation: breathe 4s ease-in-out infinite;
   }
+  .breath-ring-slow {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45);
+    animation: breathe 10s ease-in-out infinite;
+  }
 }

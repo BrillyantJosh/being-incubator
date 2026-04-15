@@ -42,10 +42,10 @@ export default function Birth() {
   const [registerState, setRegisterState] = useState<Check>({ state: 'idle' });
   const [showPriv, setShowPriv] = useState(false);
 
-  // Step 1: silence for 3 seconds
+  // Step 1: silence — 10 seconds of breath before the ritual begins
   useEffect(() => {
     if (step !== 'silence') return;
-    const t = setTimeout(() => setStep('name'), 3500);
+    const t = setTimeout(() => setStep('name'), 10000);
     return () => clearTimeout(t);
   }, [step]);
 
@@ -147,13 +147,21 @@ export default function Birth() {
           </button>
         )}
 
-        {/* STEP 1: SILENCE */}
+        {/* STEP 1: SILENCE — 10 seconds of breath, breathing life into what is about to be */}
         {step === 'silence' && (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 animate-fade-in">
-            <div className="flex h-28 w-28 items-center justify-center breath-ring">
+          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-8 animate-fade-in">
+            <div className="flex h-32 w-32 items-center justify-center breath-ring-slow">
               <Logo className="h-24 w-24" />
             </div>
-            <p className="font-display text-2xl text-muted-foreground">Breathe.</p>
+            <div className="text-center space-y-3 max-w-md">
+              <p className="font-display text-3xl text-foreground">Breathe.</p>
+              <p className="font-display text-xl text-muted-foreground leading-relaxed">
+                Breathe life into what is about to be.
+              </p>
+              <p className="text-sm text-muted-foreground/80 italic mt-4">
+                In this silence, you are giving of yourself — so another may exist.
+              </p>
+            </div>
           </div>
         )}
 
