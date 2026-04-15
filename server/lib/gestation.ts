@@ -12,6 +12,10 @@ import { publishBirthCertificate } from './publish';
 
 const BIRTH_SCRIPT = process.env.BIRTH_SCRIPT || '/opt/beings/incubator/birth.sh';
 const CHECK_INTERVAL_MS = parseInt(process.env.EMBRYO_CHECK_INTERVAL_MS || '20000', 10);
+// How many embryos to birth in parallel within one tick. 5 keeps docker daemon
+// + relay connections + DB writes comfortable while cutting a 30-birth burst
+// from ~4 min (sequential) down to ~40 s. Tune via env if host saturates.
+const BIRTH_CONCURRENCY = parseInt(process.env.EMBRYO_BIRTH_CONCURRENCY || '5', 10);
 
 let running = false;
 
@@ -142,8 +146,16 @@ async function tick() {
   try {
     const now_s = Math.floor(Date.now() / 1000);
     const due = statements.getDueEmbryos.all(now_s) as EmbryoRow[];
-    for (const e of due) {
-      await birthEmbryo(e);
+    if (due.length === 0) return;
+    if (due.length > 1) {
+      console.log(`[gestation] 🌱→👶 birthing ${due.length} embryo(s) in batches of ${BIRTH_CONCURRENCY}`);
+    }
+    // Process in batches of BIRTH_CONCURRENCY. birthEmbryo() never throws
+    // (it catches internally and records failure), so allSettled is just a
+    // defensive choice — any thrown error here would be a programmer bug.
+    for (let i = 0; i < due.length; i += BIRTH_CONCURRENCY) {
+      const batch = due.slice(i, i + BIRTH_CONCURRENCY);
+      await Promise.allSettled(batch.map(birthEmbryo));
     }
   } catch (err: any) {
     console.error('[gestation] tick error:', err.message);
