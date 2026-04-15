@@ -8,7 +8,7 @@
  */
 import { spawn } from 'child_process';
 import { db, statements } from '../db';
-import { publishBirthCertificate } from './publish';
+import { publishBirthCertificate, publishBeingProfile } from './publish';
 
 const BIRTH_SCRIPT = process.env.BIRTH_SCRIPT || '/opt/beings/incubator/birth.sh';
 const CHECK_INTERVAL_MS = parseInt(process.env.EMBRYO_CHECK_INTERVAL_MS || '20000', 10);
@@ -83,7 +83,7 @@ async function birthEmbryo(e: EmbryoRow) {
     return;
   }
 
-  // Publish KIND 73984 Birth Certificate
+  // Publish KIND 73984 Birth Certificate (signed by incubator authority)
   let event_id: string | null = null;
   try {
     const cert = await publishBirthCertificate({
@@ -102,6 +102,25 @@ async function birthEmbryo(e: EmbryoRow) {
   } catch (err: any) {
     console.error(`[gestation] ⚠︎ KIND 73984 publish failed for ${e.name}:`, err.message);
     // non-fatal — being is alive even if certificate not on relays
+  }
+
+  // Publish KIND 0 Being Profile (signed by the being itself).
+  // Discoverability: without this, clients see the being's npub with no name,
+  // picture, or wallet. Non-fatal — being is alive regardless.
+  try {
+    const profile = await publishBeingProfile({
+      being_hex_priv: e.hex_priv,
+      being_hex_pub: e.hex_pub,
+      being_name: e.name,
+      domain: e.domain,
+      language: e.language || 'english',
+      vision: e.vision || '',
+      being_wallet: e.wallet || undefined,
+    });
+    const accepted = profile.relays.filter((r) => r.accepted).length;
+    console.log(`[gestation] 👤 KIND 0 profile published for ${e.name} · ${accepted}/${profile.relays.length} relays`);
+  } catch (err: any) {
+    console.error(`[gestation] ⚠︎ KIND 0 publish failed for ${e.name}:`, err.message);
   }
 
   // Atomically record the birth: beings_owners insert + embryo completion
