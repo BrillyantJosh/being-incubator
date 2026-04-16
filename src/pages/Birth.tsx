@@ -13,8 +13,7 @@ import { api } from '@/lib/api';
 import { shortHex } from '@/lib/utils';
 
 const LANGUAGES = [
-  'slovenian', 'english', 'german', 'french', 'spanish', 'italian',
-  'portuguese', 'croatian', 'serbian', 'russian', 'chinese', 'japanese',
+  'slovenian', 'english',
 ];
 
 type Step = 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'birthing';
