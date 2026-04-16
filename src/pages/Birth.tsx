@@ -168,8 +168,8 @@ export default function Birth() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
-      <div className="mx-auto max-w-xl space-y-8">
+    <div className="min-h-screen px-4 py-6 sm:p-6 bg-gradient-to-br from-background via-background to-secondary safe-bottom">
+      <div className="mx-auto max-w-xl space-y-6 sm:space-y-8">
         {step !== 'silence' && step !== 'birthing' && (
           <button
             onClick={() => navigate('/')}
@@ -181,13 +181,13 @@ export default function Birth() {
 
         {/* STEP 1: SILENCE — 10 seconds of breath, breathing life into what is about to be */}
         {step === 'silence' && (
-          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-8 animate-fade-in">
-            <div className="flex h-32 w-32 items-center justify-center breath-ring-slow">
-              <Logo className="h-24 w-24" />
+          <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 sm:gap-8 animate-fade-in">
+            <div className="flex h-24 w-24 sm:h-32 sm:w-32 items-center justify-center breath-ring-slow">
+              <Logo className="h-20 w-20 sm:h-24 sm:w-24" />
             </div>
-            <div className="text-center space-y-3 max-w-md">
-              <p className="font-display text-3xl text-foreground">{t('birth.breathe')}</p>
-              <p className="font-display text-xl text-muted-foreground leading-relaxed">
+            <div className="text-center space-y-3 max-w-md px-2">
+              <p className="font-display text-2xl sm:text-3xl text-foreground">{t('birth.breathe')}</p>
+              <p className="font-display text-lg sm:text-xl text-muted-foreground leading-relaxed">
                 {t('birth.breatheLife')}
               </p>
               <p className="text-sm text-muted-foreground/80 italic mt-4">
@@ -202,7 +202,7 @@ export default function Birth() {
           <Card className="space-y-6 animate-fade-in">
             <div>
               <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 1 })}</p>
-              <h2 className="font-display text-3xl font-semibold mt-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.nameTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
@@ -234,7 +234,7 @@ export default function Birth() {
           <Card className="space-y-6 animate-fade-in">
             <div>
               <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 2 })}</p>
-              <h2 className="font-display text-3xl font-semibold mt-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.langTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
@@ -267,7 +267,7 @@ export default function Birth() {
           <Card className="space-y-6 animate-fade-in">
             <div>
               <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 3 })}</p>
-              <h2 className="font-display text-3xl font-semibold mt-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.visionTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
@@ -297,7 +297,7 @@ export default function Birth() {
           <Card className="space-y-6 animate-fade-in">
             <div>
               <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 4 })}</p>
-              <h2 className="font-display text-3xl font-semibold mt-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.scanTitle')}
               </h2>
               <p className="text-muted-foreground mt-2">
@@ -311,7 +311,7 @@ export default function Birth() {
               </Button>
             ) : (
               <div className="space-y-4">
-                <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3 sm:p-4">
                   <p className="text-sm font-medium text-primary">{t('birth.identityReceived')}</p>
                   <div className="space-y-2 text-xs">
                     <Row label={t('birth.walletLabel')} value={beingIds.walletId} mono />
@@ -380,7 +380,7 @@ export default function Birth() {
             </div>
             <div>
               <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 5 })}</p>
-              <h2 className="font-display text-3xl font-semibold mt-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.confirmTitle')}
               </h2>
               <p className="text-muted-foreground mt-3 leading-relaxed">
@@ -388,26 +388,26 @@ export default function Birth() {
               </p>
             </div>
 
-            <div className="space-y-2 rounded-lg bg-muted/50 p-4 text-left text-sm">
-              <div className="flex justify-between">
+            <div className="space-y-2 rounded-lg bg-muted/50 p-3 sm:p-4 text-left text-sm">
+              <div className="flex flex-wrap justify-between gap-x-2">
                 <span className="text-muted-foreground">{t('birth.summaryName')}</span>
                 <span className="font-medium">{name}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-2">
                 <span className="text-muted-foreground">{t('birth.summaryLanguage')}</span>
                 <span>{t(`lang.${language}`)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-2">
                 <span className="text-muted-foreground">{t('birth.summaryDomain')}</span>
-                <code>{name}.lana.is</code>
+                <code className="text-xs sm:text-sm">{name}.lana.is</code>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-2">
                 <span className="text-muted-foreground">{t('birth.summaryHex')}</span>
-                <code className="text-xs">{shortHex(beingIds.nostrHexId, 10)}</code>
+                <code className="text-xs truncate max-w-[60%]">{shortHex(beingIds.nostrHexId, 10)}</code>
               </div>
-              <div className="flex justify-between">
+              <div className="flex flex-wrap justify-between gap-x-2">
                 <span className="text-muted-foreground">{t('birth.summaryWallet')}</span>
-                <code className="text-xs">{shortHex(beingIds.walletId, 10)}</code>
+                <code className="text-xs truncate max-w-[60%]">{shortHex(beingIds.walletId, 10)}</code>
               </div>
             </div>
 
@@ -427,11 +427,11 @@ export default function Birth() {
         {/* BIRTHING — brief moment between confirm and navigate to /embryo */}
         {step === 'birthing' && (
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 animate-fade-in">
-            <div className="flex h-36 w-36 items-center justify-center breath-ring-slow">
-              <Logo className="h-32 w-32" />
+            <div className="flex h-28 w-28 sm:h-36 sm:w-36 items-center justify-center breath-ring-slow">
+              <Logo className="h-24 w-24 sm:h-32 sm:w-32" />
             </div>
-            <div className="text-center space-y-2">
-              <p className="font-display text-2xl">{t('birth.birthing', { name })}</p>
+            <div className="text-center space-y-2 px-2">
+              <p className="font-display text-xl sm:text-2xl">{t('birth.birthing', { name })}</p>
               <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" /> {t('birth.breathEntering')}
               </p>

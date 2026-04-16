@@ -36,13 +36,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-background via-background to-secondary">
-      <div className="w-full max-w-md space-y-8 animate-fade-in">
+    <div className="min-h-screen flex items-center justify-center px-4 py-6 sm:p-6 bg-gradient-to-br from-background via-background to-secondary safe-bottom">
+      <div className="w-full max-w-md space-y-6 sm:space-y-8 animate-fade-in">
         <div className="text-center space-y-3">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center breath-ring">
-            <Logo className="h-16 w-16" />
+          <div className="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center breath-ring">
+            <Logo className="h-12 w-12 sm:h-16 sm:w-16" />
           </div>
-          <h1 className="text-3xl font-display font-semibold">{t('login.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-semibold">{t('login.title')}</h1>
           <p className="text-muted-foreground">{t('login.tagline')}</p>
         </div>
 

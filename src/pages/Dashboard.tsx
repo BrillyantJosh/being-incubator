@@ -48,24 +48,24 @@ export default function Dashboard() {
   const displayName = session.profileDisplayName || session.profileName || t('dashboard.wanderer');
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
-      <div className="mx-auto max-w-2xl space-y-8 animate-fade-in">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen px-4 py-6 sm:p-6 bg-gradient-to-br from-background via-background to-secondary safe-bottom">
+      <div className="mx-auto max-w-2xl space-y-6 sm:space-y-8 animate-fade-in">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {session.profilePicture ? (
               <img
                 src={session.profilePicture}
                 alt=""
-                className="h-12 w-12 rounded-full border-2 border-primary/30"
+                className="h-10 w-10 sm:h-12 sm:w-12 rounded-full border-2 border-primary/30 shrink-0"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center">
-                <Logo className="h-10 w-10" />
+              <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center shrink-0">
+                <Logo className="h-8 w-8 sm:h-10 sm:w-10" />
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{t('dashboard.welcome')}</p>
-              <h1 className="font-display text-xl font-semibold">{displayName}</h1>
+              <h1 className="font-display text-lg sm:text-xl font-semibold truncate">{displayName}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -81,9 +81,9 @@ export default function Dashboard() {
                 <option key={l} value={l}>{LANG_LABELS[l]}</option>
               ))}
             </select>
-            <Button variant="ghost" size="sm" onClick={logout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              {t('dashboard.leave')}
+            <Button variant="ghost" size="sm" onClick={logout} aria-label={t('dashboard.leave')}>
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{t('dashboard.leave')}</span>
             </Button>
           </div>
         </header>
@@ -104,7 +104,7 @@ export default function Dashboard() {
                 {t('dashboard.couldNotCross')}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 variant="outline"
                 className="flex-1"

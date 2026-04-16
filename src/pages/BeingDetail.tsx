@@ -8,7 +8,7 @@ export default function BeingDetail() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
+    <div className="min-h-screen px-4 py-6 sm:p-6 bg-gradient-to-br from-background via-background to-secondary safe-bottom">
       <div className="mx-auto max-w-xl space-y-6">
         <button
           onClick={() => navigate('/')}

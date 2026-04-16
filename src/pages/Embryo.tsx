@@ -169,11 +169,11 @@ export default function EmbryoPage() {
   const countdown = formatAdaptiveEta(adaptiveEta ?? 0, t);
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-background via-background to-secondary">
-      <div className="mx-auto max-w-2xl space-y-10 animate-fade-in">
+    <div className="min-h-screen px-4 py-6 sm:p-6 bg-gradient-to-br from-background via-background to-secondary safe-bottom">
+      <div className="mx-auto max-w-2xl space-y-8 sm:space-y-10 animate-fade-in">
         <header className="text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{t('embryo.gestationOf')}</p>
-          <h1 className="font-display text-4xl md:text-5xl font-semibold mt-2">{embryo.name}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-semibold mt-2">{embryo.name}</h1>
           {embryo.language && (
             <p className="text-sm text-muted-foreground mt-1 italic">
               {t('embryo.willThinkIn', { lang: t(`lang.${embryo.language}`) })}
@@ -181,7 +181,7 @@ export default function EmbryoPage() {
           )}
         </header>
 
-        <div className="relative mx-auto h-[360px] w-[360px] md:h-[420px] md:w-[420px]">
+        <div className="relative mx-auto w-[min(360px,85vw)] aspect-square md:w-[420px]">
           <Mandala progress={smoothProgress} status={embryo.status} />
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <div
@@ -381,7 +381,7 @@ function ThoughtsFeed({
 
       <div
         ref={scrollRef}
-        className="rounded-lg border border-border/40 bg-background/40 backdrop-blur-sm p-5 h-[280px] overflow-y-auto space-y-4 font-display"
+        className="rounded-lg border border-border/40 bg-background/40 backdrop-blur-sm p-3 sm:p-5 h-[240px] sm:h-[280px] overflow-y-auto space-y-4 font-display"
       >
         {thoughts.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground italic animate-pulse pt-20">
@@ -426,7 +426,7 @@ function ThoughtLine({ thought, t }: { thought: Thought; t: TFn }) {
         <span>{phaseLabel}</span>
       </div>
       <p
-        className="mt-1 text-lg md:text-xl leading-snug text-foreground italic"
+        className="mt-1 text-base sm:text-lg md:text-xl leading-snug text-foreground italic"
         style={{ opacity: intensity }}
       >
         {thought.content}

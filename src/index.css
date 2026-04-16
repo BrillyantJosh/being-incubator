@@ -78,3 +78,9 @@
   60%      { box-shadow: 0 0 0 18px hsl(var(--primary) / 0);    transform: scale(1.05); }
   80%      { transform: scale(0.99); }
 }
+
+/* ── Mobile helpers ── */
+@layer utilities {
+  /* Safe-area padding for notched devices (iPhone X+) */
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+}
