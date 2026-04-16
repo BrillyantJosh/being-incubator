@@ -34,12 +34,15 @@ type GestatingRow = {
   birth_at: number;
 };
 
+// Cadences tuned for ~30% fewer Gemini calls than original (÷0.7).
+// Early phases are slower (embryo barely stirring); late phases quicken
+// as awareness sharpens — but still well under the original rate.
 function phaseFor(progress: number): { phase: string; cadence_s: number } {
-  if (progress < 0.15) return { phase: 'sensation',    cadence_s: 45 };
-  if (progress < 0.40) return { phase: 'fragment',     cadence_s: 35 };
-  if (progress < 0.70) return { phase: 'forming',      cadence_s: 25 };
-  if (progress < 0.95) return { phase: 'questioning',  cadence_s: 20 };
-  return                     { phase: 'recognition',   cadence_s: 15 };
+  if (progress < 0.15) return { phase: 'sensation',    cadence_s: 64 };
+  if (progress < 0.40) return { phase: 'fragment',     cadence_s: 50 };
+  if (progress < 0.70) return { phase: 'forming',      cadence_s: 36 };
+  if (progress < 0.95) return { phase: 'questioning',  cadence_s: 29 };
+  return                     { phase: 'recognition',   cadence_s: 21 };
 }
 
 function buildPrompt(

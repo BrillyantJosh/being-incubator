@@ -37,7 +37,6 @@ export const api = {
     being_hex_pub: string;
     being_wif?: string;
     being_wallet?: string;
-    gestation_ms?: number;
   }) =>
     request<{
       ok: true;
@@ -47,6 +46,7 @@ export const api = {
       conceived_at: number;
       birth_at: number;
       gestation_ms: number;
+      queue_position: number;
     }>('/api/beings/birth', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -66,6 +66,7 @@ export const api = {
       status: 'gestating' | 'birthing' | 'birthed' | 'failed';
       progress: number;
       time_remaining_ms: number;
+      queue_position: number;
       event_id: string | null;
       birth_error: string | null;
       now: number;

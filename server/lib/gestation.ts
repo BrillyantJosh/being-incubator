@@ -12,10 +12,10 @@ import { publishBirthCertificate, publishBeingProfile } from './publish';
 
 const BIRTH_SCRIPT = process.env.BIRTH_SCRIPT || '/opt/beings/incubator/birth.sh';
 const CHECK_INTERVAL_MS = parseInt(process.env.EMBRYO_CHECK_INTERVAL_MS || '20000', 10);
-// How many embryos to birth in parallel within one tick. 5 keeps docker daemon
-// + relay connections + DB writes comfortable while cutting a 30-birth burst
-// from ~4 min (sequential) down to ~40 s. Tune via env if host saturates.
-const BIRTH_CONCURRENCY = parseInt(process.env.EMBRYO_BIRTH_CONCURRENCY || '5', 10);
+// Sequential births: one at a time. The queue already spaces births 48 s apart
+// via birth_at scheduling, so concurrency > 1 would only matter if the watcher
+// fell behind (crash recovery). Even then, sequential keeps Docker + relays calm.
+const BIRTH_CONCURRENCY = 1;
 
 let running = false;
 

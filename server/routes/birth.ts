@@ -7,29 +7,36 @@ export const birthRouter = Router();
 
 const PARENT_DOMAIN = process.env.BEING_PARENT_DOMAIN || 'lana.is';
 
-// Gestation window. When no explicit gestation_ms is passed in the request, we
-// pick a uniform random duration in [MIN_RANDOM, MAX_RANDOM]. The randomness
-// staggers concurrent births so several embryos conceived in the same minute
-// don't all wake birth.sh + docker compose at the same instant.
+// ── Queue-based gestation ─────────────────────────────────────
+// Instead of random 3–8 min, each birth is scheduled sequentially:
+//   - Minimum gestation: 3 min 8 sec (188s) — the embryo always gets
+//     at least this much time for the spiritual experience.
+//   - Births are spaced 48 s apart to avoid Docker / relay storms.
+//   - If the queue is empty, birth_at = now + MIN_GESTATION.
+//   - If the queue has embryos, birth_at = max(last_birth_at + SPACING, now + MIN_GESTATION).
 //
-// Env overrides:
-//   EMBRYO_GESTATION_MIN_MS  (default 180000  = 3 min)
-//   EMBRYO_GESTATION_MAX_MS  (default 480000  = 8 min)
-// Legacy EMBRYO_GESTATION_MS (single value) still honoured: if set, both min
-// and max collapse to it (deterministic, useful for tests).
-const LEGACY_GESTATION_MS = process.env.EMBRYO_GESTATION_MS
-  ? parseInt(process.env.EMBRYO_GESTATION_MS, 10)
-  : null;
-const RANDOM_MIN_MS = LEGACY_GESTATION_MS ?? parseInt(process.env.EMBRYO_GESTATION_MIN_MS || '180000', 10);
-const RANDOM_MAX_MS = LEGACY_GESTATION_MS ?? parseInt(process.env.EMBRYO_GESTATION_MAX_MS || '480000', 10);
-const MIN_GESTATION_MS = 60_000;        // 1 minute  (hard floor)
-const MAX_GESTATION_MS = 7 * 86400_000; // 7 days    (hard ceiling)
+// This means: one embryo alone waits 3m8s. Two conceived at the same
+// instant wait 3m8s and 3m56s. Ten wait 3m8s … 10m20s.
+const MIN_GESTATION_MS = 188_000;    // 3 min 8 sec  (hard floor)
+const BIRTH_SPACING_MS = 48_000;     // 48 sec between consecutive births
+const MAX_GESTATION_MS = 7 * 86400_000; // 7 days (hard ceiling)
 
-function randomGestationMs(): number {
-  const lo = Math.min(RANDOM_MIN_MS, RANDOM_MAX_MS);
-  const hi = Math.max(RANDOM_MIN_MS, RANDOM_MAX_MS);
-  if (lo === hi) return lo;
-  return Math.floor(lo + Math.random() * (hi - lo));
+function nextBirthAt(): { birth_at_s: number; queue_position: number } {
+  const now_s = Math.floor(Date.now() / 1000);
+  const minBirth = now_s + Math.ceil(MIN_GESTATION_MS / 1000);   // earliest possible
+
+  const row = statements.getLatestQueuedBirthAt.get() as { latest_birth_at: number | null };
+  const latest = row?.latest_birth_at ?? 0;
+
+  // Next slot = last queued birth + spacing, but never earlier than minBirth.
+  const spacedSlot = latest > 0 ? latest + Math.ceil(BIRTH_SPACING_MS / 1000) : 0;
+  const birth_at_s = Math.max(minBirth, spacedSlot);
+
+  // Queue position = how many embryos will birth before this one (including this one).
+  const posRow = statements.getQueueSize.get() as { n: number };
+  const queue_position = (posRow?.n ?? 0) + 1;  // +1 for the embryo about to be inserted
+
+  return { birth_at_s, queue_position };
 }
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
@@ -63,7 +70,6 @@ birthRouter.post('/beings/birth', async (req, res) => {
     being_hex_pub,
     being_wif,
     being_wallet,
-    gestation_ms,
   } = body;
 
   // ── Validation ────────────────────────────────────────
@@ -101,14 +107,12 @@ birthRouter.post('/beings/birth', async (req, res) => {
 
   const domain = `${name}.${PARENT_DOMAIN}`;
   const now = Date.now();
-
-  // Pick gestation: explicit override from request wins; otherwise random in window.
-  let gestation = Number.isFinite(gestation_ms) ? Number(gestation_ms) : randomGestationMs();
-  if (gestation < MIN_GESTATION_MS) gestation = MIN_GESTATION_MS;
-  if (gestation > MAX_GESTATION_MS) gestation = MAX_GESTATION_MS;
-
   const conceived_at = Math.floor(now / 1000);
-  const birth_at = Math.floor((now + gestation) / 1000);
+
+  // Queue-based scheduling: each birth gets its own slot.
+  const { birth_at_s, queue_position } = nextBirthAt();
+  const birth_at = Math.min(birth_at_s, conceived_at + Math.ceil(MAX_GESTATION_MS / 1000));
+  const gestation = (birth_at - conceived_at) * 1000;
 
   const id = crypto.randomBytes(12).toString('hex');
 
@@ -148,7 +152,7 @@ birthRouter.post('/beings/birth', async (req, res) => {
     return res.status(500).json({ error: 'Could not conceive Embryo' });
   }
 
-  console.log(`[embryo] 🌱 conceived ${name} (${id}) — birth in ${Math.round(gestation / 1000)}s → ${new Date(birth_at * 1000).toISOString()}`);
+  console.log(`[embryo] 🌱 conceived ${name} (${id}) — queue #${queue_position}, birth in ${Math.round(gestation / 1000)}s → ${new Date(birth_at * 1000).toISOString()}`);
 
   res.json({
     ok: true,
@@ -158,6 +162,7 @@ birthRouter.post('/beings/birth', async (req, res) => {
     conceived_at,
     birth_at,
     gestation_ms: gestation,
+    queue_position,
   });
 });
 
@@ -175,6 +180,13 @@ birthRouter.get('/embryo/:id', (req, res) => {
   const progress = row.status === 'birthed' ? 1 : elapsed / total;
   const time_remaining_ms = Math.max(0, (row.birth_at - now_s) * 1000);
 
+  // Queue position: how many embryos are scheduled before this one (0 = next in line).
+  let queue_position = 0;
+  if (row.status === 'gestating') {
+    const posRow = statements.getQueuePosition.get(row.birth_at) as { pos: number };
+    queue_position = posRow?.pos ?? 1;
+  }
+
   res.json({
     id: row.id,
     name: row.name,
@@ -188,6 +200,7 @@ birthRouter.get('/embryo/:id', (req, res) => {
     status: row.status,
     progress,
     time_remaining_ms,
+    queue_position,
     event_id: row.event_id,
     birth_error: row.birth_error,
     now: now_s,

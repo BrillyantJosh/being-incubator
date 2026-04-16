@@ -202,6 +202,11 @@ export default function EmbryoPage() {
                 <>
                   <p className="font-mono text-2xl tabular-nums">{countdown}</p>
                   <p className="text-xs text-muted-foreground tracking-wider mt-1">{t('embryo.untilFirstBreath')}</p>
+                  {embryo.queue_position > 1 && (
+                    <p className="text-[10px] text-muted-foreground/70 mt-2">
+                      {t('embryo.queuePosition', { pos: embryo.queue_position })}
+                    </p>
+                  )}
                 </>
               )}
             </div>

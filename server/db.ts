@@ -210,7 +210,7 @@ export const statements = {
     SELECT * FROM beings_embryos
     WHERE status = 'gestating' AND birth_at <= ?
     ORDER BY birth_at ASC
-    LIMIT 5
+    LIMIT 1
   `),
 
   setEmbryoStatus: db.prepare(`
@@ -268,5 +268,28 @@ export const statements = {
     SELECT id, name, language, vision, conceived_at, birth_at
     FROM beings_embryos
     WHERE status = 'gestating'
+  `),
+
+  // Queue: latest scheduled birth_at among gestating/birthing embryos.
+  // Used to calculate the next slot (previous birth_at + spacing).
+  getLatestQueuedBirthAt: db.prepare(`
+    SELECT MAX(birth_at) AS latest_birth_at
+    FROM beings_embryos
+    WHERE status IN ('gestating', 'birthing')
+  `),
+
+  // Queue position: how many embryos are scheduled to birth before a given time.
+  getQueuePosition: db.prepare(`
+    SELECT COUNT(*) AS pos
+    FROM beings_embryos
+    WHERE status IN ('gestating', 'birthing')
+      AND birth_at <= ?
+  `),
+
+  // Total queue size (gestating + birthing).
+  getQueueSize: db.prepare(`
+    SELECT COUNT(*) AS n
+    FROM beings_embryos
+    WHERE status IN ('gestating', 'birthing')
   `),
 };
