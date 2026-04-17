@@ -42,10 +42,12 @@ systemParamsRouter.get('/incubator-config', (_req, res) => {
   const min_birth_ms = settings?.min_birth_ms       ?? 300_000;
 
   // Predict the next available birth slot (if a conception happened right now).
-  // Empty queue → use min_birth floor. Non-empty → last_birth + spacing.
+  // Spacing is enforced from the last *actual* birth across all history, so an
+  // empty queue still respects the gap. When even that last birth was longer
+  // than spacing ago, the min_birth floor takes over.
   const now_s = Math.floor(Date.now() / 1000);
   const minBirth_s = now_s + Math.ceil(min_birth_ms / 1000);
-  const latestRow = statements.getLatestQueuedBirthAt.get() as { latest_birth_at: number | null };
+  const latestRow = statements.getLatestBirthAt.get() as { latest_birth_at: number | null };
   const latest = latestRow?.latest_birth_at ?? 0;
   const spaced_s = latest > 0 ? latest + Math.ceil(spacing_ms / 1000) : 0;
   const next_slot_birth_at = Math.max(minBirth_s, spaced_s);

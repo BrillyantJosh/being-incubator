@@ -411,12 +411,18 @@ export const statements = {
     WHERE status = 'gestating'
   `),
 
-  // Queue: latest scheduled birth_at among gestating/birthing embryos.
-  // Used to calculate the next slot (previous birth_at + spacing).
-  getLatestQueuedBirthAt: db.prepare(`
-    SELECT MAX(birth_at) AS latest_birth_at
+  // Latest birth across the whole history — includes already-birthed embryos,
+  // not just queued ones. Spacing must be respected from the last *actual*
+  // birth even when the queue is currently empty: if the spacing is 5 days
+  // and the last being was born 1 day ago, the next slot is 4 days from now,
+  // not "right now + min_birth_ms". For queued (gestating/birthing) embryos
+  // we use the scheduled birth_at; for completed ones (birthed) we use the
+  // actual birthed_at — falling back to birth_at via COALESCE just in case.
+  // Failed embryos are excluded — a failed birth never consumed a slot.
+  getLatestBirthAt: db.prepare(`
+    SELECT MAX(COALESCE(birthed_at, birth_at)) AS latest_birth_at
     FROM beings_embryos
-    WHERE status IN ('gestating', 'birthing')
+    WHERE status IN ('gestating', 'birthing', 'birthed')
   `),
 
   // Queue position: how many embryos are scheduled to birth before a given time.

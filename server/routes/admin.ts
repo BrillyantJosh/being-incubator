@@ -124,11 +124,13 @@ adminRouter.get('/admin/queue', (req, res) => {
 
   // Predicted birth time for the *next* conception (if it happened right now).
   // Mirrors nextBirthAt() logic in birth.ts so admin sees the same number.
-  // Empty queue → use min_birth_ms floor. Non-empty → last_birth + spacing
-  // (also clamped by min_birth so a long-paused queue still respects the floor).
+  // Spacing is taken from the last birth in *all* history (including already
+  // birthed beings), not just the current queue — otherwise an empty queue
+  // would silently reset the gap to min_birth_ms.
   const minBirth_s = now_s + Math.ceil(minBirth / 1000);
-  const latestRow = rows.length > 0 ? rows[rows.length - 1].birth_at : 0;
-  const spaced_s = latestRow > 0 ? latestRow + Math.ceil(spacing / 1000) : 0;
+  const latestRow = statements.getLatestBirthAt.get() as { latest_birth_at: number | null };
+  const latest = latestRow?.latest_birth_at ?? 0;
+  const spaced_s = latest > 0 ? latest + Math.ceil(spacing / 1000) : 0;
   const next_slot_birth_at = Math.max(minBirth_s, spaced_s);
 
   res.json({

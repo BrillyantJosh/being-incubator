@@ -13,10 +13,11 @@ const PARENT_DOMAIN = process.env.BEING_PARENT_DOMAIN || 'lana.is';
 //     Decoupled from gestation — purely a ritual screen duration.
 //   - min_birth_ms:       minimum time from conception to birth when the queue
 //     is empty. The floor for the very first / next-up embryo. Default 5 min.
-//   - birth_spacing_ms:   minimum gap between consecutive births when queue is
-//     non-empty. Default 48 sec.
-// Empty queue: birth_at = now + min_birth. Non-empty: birth_at =
-// max(last_birth_at + spacing, now + min_birth). Hard ceiling of 7 days.
+//   - birth_spacing_ms:   minimum gap between consecutive births. Default 48 sec.
+//     Enforced from the last *actual* birth across all history — not just the
+//     current queue. If spacing is 5 days and the last being was born 1 day
+//     ago, the next slot is 4 days from now even when no one is in the queue.
+// birth_at = max(last_birth_at + spacing, now + min_birth). Hard ceiling 7d.
 const MAX_GESTATION_MS = 7 * 86400_000; // 7 days (hard ceiling)
 const DEFAULT_BREATH_MS    = 732_000;
 const DEFAULT_SPACING_MS   = 48_000;
@@ -38,10 +39,12 @@ function nextBirthAt(): { birth_at_s: number; queue_position: number } {
   const now_s = Math.floor(Date.now() / 1000);
   const minBirth = now_s + Math.ceil(min_birth_ms / 1000);   // earliest possible
 
-  const row = statements.getLatestQueuedBirthAt.get() as { latest_birth_at: number | null };
+  const row = statements.getLatestBirthAt.get() as { latest_birth_at: number | null };
   const latest = row?.latest_birth_at ?? 0;
 
-  // Next slot = last queued birth + spacing, but never earlier than min_birth floor.
+  // Next slot = last birth (queued OR already-birthed) + spacing, but never
+  // earlier than the min_birth floor. Including birthed embryos means the
+  // gap between successive beings holds even after the queue has emptied.
   const spacedSlot = latest > 0 ? latest + Math.ceil(spacing_ms / 1000) : 0;
   const birth_at_s = Math.max(minBirth, spacedSlot);
 
