@@ -104,11 +104,11 @@ db.exec(`
     updated_at INTEGER,
     updated_by_hex TEXT
   );
-  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, birth_spacing_ms, min_birth_ms, updated_at)
-    VALUES (1, 732000, 48000, 300000, strftime('%s','now') * 1000);
 `);
 
 // Migration: add min_birth_ms column if upgrading from earlier schema.
+// Must run BEFORE the seed INSERT below — the INSERT references min_birth_ms
+// and SQLite validates column names at parse time even for OR IGNORE no-ops.
 try {
   const cols = (db.prepare("PRAGMA table_info(admin_settings)").all() as { name: string }[]).map((c) => c.name);
   if (!cols.includes('min_birth_ms')) {
@@ -118,6 +118,11 @@ try {
 } catch (err: any) {
   console.error('[db] admin_settings migration error:', err?.message);
 }
+
+db.exec(`
+  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, birth_spacing_ms, min_birth_ms, updated_at)
+    VALUES (1, 732000, 48000, 300000, strftime('%s','now') * 1000);
+`);
 
 // Migration: beings_owners PK change (owner_hex → auto-increment id) for multi-being support
 try {
