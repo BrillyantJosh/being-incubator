@@ -91,7 +91,94 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_embryo_thoughts_embryo
     ON embryo_thoughts(embryo_id, created_at);
+
+  CREATE TABLE IF NOT EXISTS multi_being_creators (
+    hex TEXT PRIMARY KEY
+  );
 `);
+
+// Migration: beings_owners PK change (owner_hex → auto-increment id) for multi-being support
+try {
+  const tableInfo = db.prepare("PRAGMA table_info(beings_owners)").all() as { name: string; pk: number }[];
+  const ownerCol = tableInfo.find((c) => c.name === 'owner_hex');
+  if (ownerCol && ownerCol.pk === 1) {
+    console.log('[db] Migrating beings_owners: owner_hex PK → id PK (multi-being support)');
+    db.exec(`
+      CREATE TABLE beings_owners_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_hex TEXT NOT NULL,
+        being_name TEXT NOT NULL UNIQUE,
+        being_npub TEXT NOT NULL,
+        being_domain TEXT NOT NULL,
+        language TEXT,
+        vision TEXT,
+        birthed_at INTEGER NOT NULL,
+        FOREIGN KEY (owner_hex) REFERENCES users(hex)
+      );
+      INSERT INTO beings_owners_new (owner_hex, being_name, being_npub, being_domain, language, vision, birthed_at)
+        SELECT owner_hex, being_name, being_npub, being_domain, language, vision, birthed_at FROM beings_owners;
+      DROP TABLE beings_owners;
+      ALTER TABLE beings_owners_new RENAME TO beings_owners;
+      CREATE INDEX idx_beings_owner ON beings_owners(owner_hex);
+    `);
+    console.log('[db] ✅ beings_owners migrated');
+  }
+} catch (err: any) {
+  console.error('[db] beings_owners migration error:', err?.message);
+}
+
+// Migration: beings_embryos remove UNIQUE on owner_hex for multi-being support
+try {
+  const embryoCols = db.prepare("PRAGMA index_list(beings_embryos)").all() as { name: string; unique: number }[];
+  // SQLite auto-creates "sqlite_autoindex_beings_embryos_2" for UNIQUE(owner_hex).
+  // If present, recreate table without that constraint.
+  const hasOwnerUnique = embryoCols.some(
+    (idx) => idx.unique === 1 && idx.name.includes('autoindex') && idx.name.includes('2')
+  );
+  if (hasOwnerUnique) {
+    console.log('[db] Migrating beings_embryos: removing UNIQUE on owner_hex');
+    // Disable FK checks during table swap (embryo_thoughts references beings_embryos)
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      CREATE TABLE beings_embryos_new (
+        id TEXT PRIMARY KEY,
+        owner_hex TEXT NOT NULL,
+        name TEXT NOT NULL UNIQUE,
+        domain TEXT NOT NULL,
+        npub TEXT NOT NULL,
+        hex_pub TEXT NOT NULL,
+        hex_priv TEXT NOT NULL,
+        nsec TEXT NOT NULL,
+        wif TEXT,
+        wallet TEXT,
+        language TEXT,
+        vision TEXT,
+        father_hex TEXT NOT NULL,
+        conceived_at INTEGER NOT NULL,
+        birth_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'gestating',
+        birth_logs TEXT,
+        birth_error TEXT,
+        birthed_at INTEGER,
+        event_id TEXT
+      );
+      INSERT INTO beings_embryos_new SELECT * FROM beings_embryos;
+      DROP TABLE beings_embryos;
+      ALTER TABLE beings_embryos_new RENAME TO beings_embryos;
+      CREATE INDEX idx_embryos_owner ON beings_embryos(owner_hex);
+    `);
+    db.pragma('foreign_keys = ON');
+    console.log('[db] ✅ beings_embryos migrated');
+  }
+} catch (err: any) {
+  console.error('[db] beings_embryos migration error:', err?.message);
+  try { db.pragma('foreign_keys = ON'); } catch {}
+}
+
+// Seed multi-being creators
+try {
+  db.exec(`INSERT OR IGNORE INTO multi_being_creators (hex) VALUES ('56e8670aa65491f8595dc3a71c94aa7445dcdca755ca5f77c07218498a362061')`);
+} catch {}
 
 // Migrations: add new kind_38888 columns if upgrading from earlier schema
 try {
@@ -127,6 +214,33 @@ export const statements = {
     SELECT being_name AS name, being_npub AS npub, being_domain AS domain, birthed_at
     FROM beings_owners
     WHERE owner_hex = ?
+  `),
+
+  getBeingsByOwner: db.prepare(`
+    SELECT being_name AS name, being_npub AS npub, being_domain AS domain, language, birthed_at
+    FROM beings_owners
+    WHERE owner_hex = ?
+    ORDER BY birthed_at ASC
+  `),
+
+  isMultiBeingCreator: db.prepare(`
+    SELECT 1 FROM multi_being_creators WHERE hex = ?
+  `),
+
+  getActiveEmbryoByOwner: db.prepare(`
+    SELECT * FROM beings_embryos
+    WHERE owner_hex = ? AND status IN ('gestating', 'birthing')
+    LIMIT 1
+  `),
+
+  cleanupCompletedEmbryos: db.prepare(`
+    DELETE FROM beings_embryos WHERE owner_hex = ? AND status IN ('birthed', 'failed')
+  `),
+
+  cleanupThoughtsForCompletedEmbryos: db.prepare(`
+    DELETE FROM embryo_thoughts WHERE embryo_id IN (
+      SELECT id FROM beings_embryos WHERE owner_hex = ? AND status IN ('birthed', 'failed')
+    )
   `),
 
   getBeingByName: db.prepare(`

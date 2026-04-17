@@ -23,7 +23,9 @@ export const api = {
   getBeing: (ownerHex: string) =>
     request<{
       being: null | { name: string; npub: string; domain: string; birthed_at: number };
+      beings: Array<{ name: string; npub: string; domain: string; language: string; birthed_at: number }>;
       embryo: null | { id: string; name: string; domain: string; conceived_at: number; birth_at: number; status: string };
+      can_create: boolean;
     }>(`/api/beings?owner=${encodeURIComponent(ownerHex)}`),
 
   birth: (payload: {

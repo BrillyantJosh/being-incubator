@@ -8,13 +8,19 @@ beingsRouter.get('/beings', (req, res) => {
   if (!/^[0-9a-f]{64}$/i.test(owner)) {
     return res.status(400).json({ error: 'Invalid owner hex' });
   }
-  const being = statements.getBeingByOwner.get(owner) as {
+
+  const isMultiCreator = !!statements.isMultiBeingCreator.get(owner);
+  const beings = (statements.getBeingsByOwner.all(owner) as Array<{
     name: string;
     npub: string;
     domain: string;
+    language: string;
     birthed_at: number;
-  } | undefined;
+  }>);
 
+  // Find active embryo (gestating, birthing, or failed).
+  // For multi-being creators there may be multiple embryo rows (birthed ones stay until cleanup),
+  // so we specifically look for active/failed status, not just any row.
   let embryo: {
     id: string;
     name: string;
@@ -24,23 +30,37 @@ beingsRouter.get('/beings', (req, res) => {
     status: string;
   } | null = null;
 
-  if (!being) {
-    const row = statements.getEmbryoByOwner.get(owner) as any;
-    // Surface gestating, birthing AND failed — the user needs to see a failed
-    // embryo so they can retry instead of being silently stuck.
-    if (row && ['gestating', 'birthing', 'failed'].includes(row.status)) {
-      embryo = {
-        id: row.id,
-        name: row.name,
-        domain: row.domain,
-        conceived_at: row.conceived_at,
-        birth_at: row.birth_at,
-        status: row.status,
-      };
-    }
+  // Try active first (gestating/birthing)
+  let row = statements.getActiveEmbryoByOwner.get(owner) as any;
+  // Fall back to any failed embryo (so user can abandon + retry)
+  if (!row) {
+    const allEmbryos = statements.getEmbryoByOwner.all(owner) as any[];
+    row = allEmbryos.find((e: any) => e.status === 'failed') || null;
+  }
+  if (row && ['gestating', 'birthing', 'failed'].includes(row.status)) {
+    embryo = {
+      id: row.id,
+      name: row.name,
+      domain: row.domain,
+      conceived_at: row.conceived_at,
+      birth_at: row.birth_at,
+      status: row.status,
+    };
   }
 
-  res.json({ being: being ?? null, embryo });
+  // can_create: multi-creator with no active embryo, OR no beings and no embryo
+  const hasActiveEmbryo = embryo && ['gestating', 'birthing'].includes(embryo.status);
+  const can_create = isMultiCreator
+    ? !hasActiveEmbryo
+    : beings.length === 0 && !embryo;
+
+  // Backward compat: "being" field = first being (or null)
+  res.json({
+    being: beings[0] ?? null,
+    beings,
+    embryo,
+    can_create,
+  });
 });
 
 // POST /api/embryo/:id/abandon — owner discards a failed embryo so they can retry.

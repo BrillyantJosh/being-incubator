@@ -46,10 +46,11 @@ export default function Birth() {
     api.incubatorVersion().then(setBaseVersion).catch(() => {});
   }, []);
 
-  // Step 1: silence — 10 seconds of breath before the ritual begins
+  // Step 1: silence — 12 min 12 sec of breath before the ritual begins.
+  // No countdown shown; the page sits in stillness and auto-advances when ready.
   useEffect(() => {
     if (step !== 'silence') return;
-    const t = setTimeout(() => setStep('name'), 10000);
+    const t = setTimeout(() => setStep('name'), 732_000);
     return () => clearTimeout(t);
   }, [step]);
 

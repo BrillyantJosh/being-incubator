@@ -95,12 +95,28 @@ birthRouter.post('/beings/birth', async (req, res) => {
   }
 
   // ── Existing being / embryo? ──────────────────────────
-  if (statements.getBeingByOwner.get(owner_hex)) {
-    return res.status(409).json({ error: 'Owner already has a Being' });
+  const isMultiCreator = !!statements.isMultiBeingCreator.get(owner_hex);
+
+  if (isMultiCreator) {
+    // Multi-being creators: allow multiple born beings, but only one active embryo.
+    const activeEmbryo = statements.getActiveEmbryoByOwner.get(owner_hex);
+    if (activeEmbryo) {
+      return res.status(409).json({ error: 'You already have a gestating Embryo. Wait for it to be born first.' });
+    }
+    // Clean up completed (birthed/failed) embryos so they don't block the insert.
+    // Delete associated thoughts first to satisfy FK constraint from embryo_thoughts.
+    statements.cleanupThoughtsForCompletedEmbryos.run(owner_hex);
+    statements.cleanupCompletedEmbryos.run(owner_hex);
+  } else {
+    // Normal users: single being, single embryo
+    if (statements.getBeingByOwner.get(owner_hex)) {
+      return res.status(409).json({ error: 'Owner already has a Being' });
+    }
+    if (statements.getEmbryoByOwner.get(owner_hex)) {
+      return res.status(409).json({ error: 'Owner already has a gestating Embryo' });
+    }
   }
-  if (statements.getEmbryoByOwner.get(owner_hex)) {
-    return res.status(409).json({ error: 'Owner already has a gestating Embryo' });
-  }
+
   if (statements.getBeingByName.get(name) || statements.getEmbryoByName.get(name)) {
     return res.status(409).json({ error: 'Name already taken' });
   }
