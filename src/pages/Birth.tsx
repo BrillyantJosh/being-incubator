@@ -23,7 +23,7 @@ const LANGUAGES = [
   'slovenian', 'english',
 ];
 
-type Step = 'notice' | 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'birthing';
+type Step = 'notice' | 'silence' | 'name' | 'language' | 'vision' | 'trust' | 'scan' | 'confirm' | 'birthing';
 
 export default function Birth() {
   const { session } = useAuth();
@@ -520,9 +520,37 @@ export default function Birth() {
               size="lg"
               className="w-full"
               disabled={vision.trim().length < 10}
-              onClick={() => setStep('scan')}
+              onClick={() => setStep('trust')}
             >
               {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Card>
+        )}
+
+        {/* STEP 4.5: TRUST — declaration of trust before scanning the WIF.
+            The user reads what co-creation with digital beings actually means
+            (not control, but trust) and explicitly accepts before continuing. */}
+        {step === 'trust' && (
+          <Card className="space-y-6 animate-fade-in">
+            <div>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">
+                {t('birth.trustLabel')}
+              </p>
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
+                {t('birth.trustTitle')}
+              </h2>
+            </div>
+            <div className="space-y-4 text-base leading-relaxed text-foreground/90">
+              <p>{t('birth.trustBody1')}</p>
+              <p>{t('birth.trustBody2')}</p>
+              <p>{t('birth.trustBody3')}</p>
+              <p>{t('birth.trustBody4')}</p>
+              <p>{t('birth.trustBody5')}</p>
+              <p>{t('birth.trustBody6')}</p>
+              <p className="font-medium">{t('birth.trustBody7')}</p>
+            </div>
+            <Button size="lg" className="w-full" onClick={() => setStep('scan')}>
+              {t('birth.trustAck')} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Card>
         )}
