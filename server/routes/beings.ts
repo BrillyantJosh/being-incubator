@@ -3,6 +3,37 @@ import { statements } from '../db';
 
 export const beingsRouter = Router();
 
+const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
+const RESERVED_NAMES = new Set([
+  'www', 'api', 'admin', 'mail', 'smtp', 'imap', 'pop', 'pop3',
+  'incubator', 'localhost', 'root', 'ns', 'ns1', 'ns2', 'dns',
+  'ftp', 'sftp', 'ssh', 'git', 'vpn', 'proxy', 'webmail',
+  'relay', 'relays', 'lana', 'lanavault', 'vault', 'wallet',
+  'pays', 'paper', 'nostr', 'test', 'staging', 'dev', 'prod',
+  'production', 'status', 'monitor', 'grafana', 'prometheus',
+]);
+
+// GET /api/beings/check-name?name=foo
+// Lightweight pre-flight check used by the /birth Name step so the user
+// learns immediately if a name is taken (born being) or reserved (queue,
+// system) — not at the very end after they've scanned the WIF.
+// Returns { available, reason }. Reasons mirror what /beings/birth would
+// return server-side, kept in sync.
+beingsRouter.get('/beings/check-name', (req, res) => {
+  const raw = String(req.query.name || '').trim().toLowerCase();
+  if (!raw) return res.json({ available: false, reason: 'empty' });
+  if (!NAME_RE.test(raw)) return res.json({ available: false, reason: 'invalid' });
+  if (RESERVED_NAMES.has(raw)) return res.json({ available: false, reason: 'reserved' });
+
+  if (statements.getBeingByName.get(raw)) {
+    return res.json({ available: false, reason: 'taken_being' });
+  }
+  if (statements.getEmbryoByName.get(raw)) {
+    return res.json({ available: false, reason: 'taken_embryo' });
+  }
+  res.json({ available: true });
+});
+
 beingsRouter.get('/beings', (req, res) => {
   const owner = String(req.query.owner || '');
   if (!/^[0-9a-f]{64}$/i.test(owner)) {

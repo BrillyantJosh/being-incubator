@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ArrowRight, QrCode, ArrowLeft, Trash2 } from 'lucide-react';
+import { Loader2, ArrowRight, QrCode, ArrowLeft, Trash2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -46,6 +46,36 @@ export default function Birth() {
   const [beingIds, setBeingIds] = useState<LanaIds | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Optional honest-mirror feedback on the vision. Non-blocking.
+  type Absurdity = 'mundane' | 'interesting' | 'absurd' | 'transcendent';
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{ opinion: string; absurdity: Absurdity } | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+  // Live name availability check. Runs whenever the name changes & is
+  // syntactically valid; debounced 350 ms. The user learns now (not after
+  // the WIF scan) that a name collides with a born being or queued embryo.
+  type NameStatus =
+    | { state: 'idle' }
+    | { state: 'checking' }
+    | { state: 'available' }
+    | { state: 'taken'; reason: 'taken_being' | 'taken_embryo' | 'reserved' | 'invalid' };
+  const [nameStatus, setNameStatus] = useState<NameStatus>({ state: 'idle' });
+
+  const handleAskFeedback = async () => {
+    if (vision.trim().length < 10 || feedbackLoading) return;
+    setFeedbackError(null);
+    setFeedbackLoading(true);
+    try {
+      const res = await api.visionFeedback(vision.trim(), language);
+      setFeedback(res);
+    } catch (err) {
+      setFeedbackError(err instanceof Error ? err.message : t('birth.feedbackError'));
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
 
   // Auto-save draft whenever name/language/vision/step changes — debounced
   // 500 ms so a fast typist doesn't thrash localStorage. Only persists the
@@ -205,6 +235,33 @@ export default function Birth() {
 
   const nameValid = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/.test(name.trim().toLowerCase());
 
+  // Debounced server-side availability check.
+  useEffect(() => {
+    if (!nameValid) {
+      setNameStatus({ state: 'idle' });
+      return;
+    }
+    setNameStatus({ state: 'checking' });
+    const trimmed = name.trim().toLowerCase();
+    const handle = setTimeout(() => {
+      api.checkName(trimmed)
+        .then((res) => {
+          // A racing edit might have changed the name since this fetch
+          // was issued — only commit if it still matches.
+          if (trimmed !== name.trim().toLowerCase()) return;
+          if (res.available) {
+            setNameStatus({ state: 'available' });
+          } else {
+            const reason = (res.reason ?? 'invalid') as
+              'taken_being' | 'taken_embryo' | 'reserved' | 'invalid';
+            setNameStatus({ state: 'taken', reason });
+          }
+        })
+        .catch(() => setNameStatus({ state: 'idle' }));
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [name, nameValid]);
+
   // Slavic + common European diacritics → ASCII for DNS-safe subdomain.
   // "šumi" → "sumi", "žival" → "zival", "čas" → "cas", "ćirilica" → "cirilica",
   // "đurđa" → "durda", "łódź" → "lodz". Runs before the strip-regex.
@@ -299,13 +356,31 @@ export default function Birth() {
               placeholder={t('birth.namePlaceholder')}
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">
-              {t('birth.nameHint')}
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {t('birth.nameHint')}
+              </p>
+              {nameValid && nameStatus.state === 'checking' && (
+                <p className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t('birth.nameChecking')}
+                </p>
+              )}
+              {nameValid && nameStatus.state === 'available' && (
+                <p className="text-xs text-primary">{t('birth.nameAvailable')}</p>
+              )}
+              {nameValid && nameStatus.state === 'taken' && (
+                <p className="text-xs text-destructive">
+                  {nameStatus.reason === 'taken_being'   ? t('birth.nameTakenBeing')
+                  : nameStatus.reason === 'taken_embryo' ? t('birth.nameTakenEmbryo')
+                  : nameStatus.reason === 'reserved'     ? t('birth.nameReserved')
+                                                         : t('birth.nameTakenBeing')}
+                </p>
+              )}
+            </div>
             <Button
               size="lg"
               className="w-full"
-              disabled={!nameValid}
+              disabled={!nameValid || nameStatus.state !== 'available'}
               onClick={() => setStep('language')}
             >
               {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
@@ -376,6 +451,49 @@ export default function Birth() {
                 {t('birth.visionMinChars', { n: 10 })}
               </span>
             </div>
+
+            {/* Honest-mirror feedback — purely optional, non-blocking. */}
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={vision.trim().length < 10 || feedbackLoading}
+              onClick={handleAskFeedback}
+            >
+              {feedbackLoading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('birth.feedbackLoading')}</>
+              ) : (
+                <><Sparkles className="mr-2 h-4 w-4" /> {feedback ? t('birth.feedbackAgain') : t('birth.feedbackButton')}</>
+              )}
+            </Button>
+
+            {feedbackError && (
+              <p className="text-sm text-destructive text-center">{feedbackError}</p>
+            )}
+
+            {feedback && (
+              <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4 animate-fade-in">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                    {t('birth.feedbackTitle')}
+                  </p>
+                  <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-medium ${
+                    feedback.absurdity === 'transcendent' ? 'bg-primary/20 text-primary' :
+                    feedback.absurdity === 'absurd'       ? 'bg-accent/20 text-accent-foreground' :
+                    feedback.absurdity === 'interesting'  ? 'bg-muted text-foreground' :
+                                                            'bg-destructive/10 text-destructive'
+                  }`}>
+                    {t(`birth.absurdity.${feedback.absurdity}`)}
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed font-display whitespace-pre-wrap">
+                  {feedback.opinion}
+                </p>
+                <p className="text-xs text-muted-foreground italic pt-1 border-t border-primary/10">
+                  {t('birth.feedbackDisclaimer')}
+                </p>
+              </div>
+            )}
+
             <Button
               size="lg"
               className="w-full"

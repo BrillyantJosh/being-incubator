@@ -13,6 +13,7 @@ import { birthRouter } from './routes/birth';
 import { systemParamsRouter } from './routes/system-params';
 import { walletRouter } from './routes/wallet';
 import { adminRouter } from './routes/admin';
+import { visionFeedbackRouter } from './routes/vision-feedback';
 
 const PORT = parseInt(process.env.SERVER_PORT || '3006', 10);
 const DIST_DIR = path.resolve('./dist');
@@ -32,6 +33,7 @@ app.use('/api', birthRouter);
 app.use('/api', systemParamsRouter);
 app.use('/api', walletRouter);
 app.use('/api', adminRouter);
+app.use('/api', visionFeedbackRouter);
 
 // Serve built client in production
 if (fs.existsSync(DIST_DIR)) {

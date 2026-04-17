@@ -20,6 +20,14 @@ export const api = {
   registerUser: (u: { hex: string; npub: string; walletId: string; name?: string; picture?: string }) =>
     request<{ ok: true }>('/api/users', { method: 'POST', body: JSON.stringify(u) }),
 
+  // Pre-flight check used by the /birth Name step. Returns { available, reason? }.
+  // reason ∈ 'empty' | 'invalid' | 'reserved' | 'taken_being' | 'taken_embryo'
+  checkName: (name: string) =>
+    request<{
+      available: boolean;
+      reason?: 'empty' | 'invalid' | 'reserved' | 'taken_being' | 'taken_embryo';
+    }>(`/api/beings/check-name?name=${encodeURIComponent(name)}`),
+
   getBeing: (ownerHex: string) =>
     request<{
       being: null | { name: string; npub: string; domain: string; birthed_at: number };
@@ -161,6 +169,18 @@ export const api = {
     }>('/api/admin/settings', {
       method: 'PUT',
       body: JSON.stringify({ admin_hex, breath_duration_ms, birth_spacing_ms, min_birth_ms }),
+    }),
+
+  // Sends the user's vision (the seed of their being-to-be) to Gemini and
+  // returns an honest opinion through the lens of "ideas must be absurd".
+  // Non-blocking — the user controls whether to continue.
+  visionFeedback: (vision: string, language: string) =>
+    request<{
+      opinion: string;
+      absurdity: 'mundane' | 'interesting' | 'absurd' | 'transcendent';
+    }>('/api/vision-feedback', {
+      method: 'POST',
+      body: JSON.stringify({ vision, language }),
     }),
 
   adminGetQueue: (admin_hex: string) =>
