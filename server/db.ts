@@ -95,6 +95,16 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS multi_being_creators (
     hex TEXT PRIMARY KEY
   );
+
+  CREATE TABLE IF NOT EXISTS admin_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    breath_duration_ms INTEGER NOT NULL DEFAULT 732000,
+    birth_spacing_ms INTEGER NOT NULL DEFAULT 48000,
+    updated_at INTEGER,
+    updated_by_hex TEXT
+  );
+  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, birth_spacing_ms, updated_at)
+    VALUES (1, 732000, 48000, strftime('%s','now') * 1000);
 `);
 
 // Migration: beings_owners PK change (owner_hex → auto-increment id) for multi-being support
@@ -405,5 +415,31 @@ export const statements = {
     SELECT COUNT(*) AS n
     FROM beings_embryos
     WHERE status IN ('gestating', 'birthing')
+  `),
+
+  // ── Admin settings ───────────────────────────────────────
+  getAdminSettings: db.prepare(`
+    SELECT breath_duration_ms, birth_spacing_ms, updated_at, updated_by_hex
+    FROM admin_settings WHERE id = 1
+  `),
+
+  updateAdminSettings: db.prepare(`
+    UPDATE admin_settings
+    SET breath_duration_ms = @breath_duration_ms,
+        birth_spacing_ms   = @birth_spacing_ms,
+        updated_at         = @updated_at,
+        updated_by_hex     = @updated_by_hex
+    WHERE id = 1
+  `),
+
+  // Admin queue: full embryo list with owner info, ordered by birth_at.
+  listGestatingEmbryos: db.prepare(`
+    SELECT e.id, e.owner_hex, e.name, e.domain, e.npub, e.language, e.vision,
+           e.conceived_at, e.birth_at, e.status,
+           u.name AS owner_name, u.npub AS owner_npub, u.picture AS owner_picture
+    FROM beings_embryos e
+    LEFT JOIN users u ON u.hex = e.owner_hex
+    WHERE e.status IN ('gestating', 'birthing')
+    ORDER BY e.birth_at ASC
   `),
 };

@@ -123,4 +123,60 @@ export const api = {
       '/api/wallet/register',
       { method: 'POST', body: JSON.stringify({ wallet_id, nostr_id_hex }) },
     ),
+
+  // Public timings + next-slot ETA used by the birth flow.
+  incubatorConfig: () =>
+    request<{
+      breath_duration_ms: number;
+      birth_spacing_ms: number;
+      next_slot_birth_at: number;
+      queue_size: number;
+      server_now: number;
+    }>('/api/incubator-config'),
+
+  // Admin endpoints — admin_hex is checked server-side against the hardcoded
+  // ADMIN_HEX. A wrong/missing hex returns 401/403.
+  adminGetSettings: (admin_hex: string) =>
+    request<{
+      breath_duration_ms: number;
+      birth_spacing_ms: number;
+      updated_at: number | null;
+      updated_by_hex: string | null;
+    }>(`/api/admin/settings?admin_hex=${encodeURIComponent(admin_hex)}`),
+
+  adminUpdateSettings: (admin_hex: string, breath_duration_ms: number, birth_spacing_ms: number) =>
+    request<{
+      breath_duration_ms: number;
+      birth_spacing_ms: number;
+      updated_at: number;
+      updated_by_hex: string;
+    }>('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ admin_hex, breath_duration_ms, birth_spacing_ms }),
+    }),
+
+  adminGetQueue: (admin_hex: string) =>
+    request<{
+      embryos: Array<{
+        id: string;
+        owner_hex: string;
+        name: string;
+        domain: string;
+        npub: string;
+        language: string | null;
+        vision: string | null;
+        conceived_at: number;
+        birth_at: number;
+        status: string;
+        progress: number;
+        time_remaining_s: number;
+        owner_name: string | null;
+        owner_npub: string | null;
+        owner_picture: string | null;
+      }>;
+      queue_size: number;
+      settings: { breath_duration_ms: number; birth_spacing_ms: number };
+      next_slot_birth_at: number;
+      server_now: number;
+    }>(`/api/admin/queue?admin_hex=${encodeURIComponent(admin_hex)}`),
 };

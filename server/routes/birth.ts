@@ -8,28 +8,37 @@ export const birthRouter = Router();
 const PARENT_DOMAIN = process.env.BEING_PARENT_DOMAIN || 'lana.is';
 
 // ── Queue-based gestation ─────────────────────────────────────
-// Instead of random 3–8 min, each birth is scheduled sequentially:
-//   - Minimum gestation: 3 min 8 sec (188s) — the embryo always gets
-//     at least this much time for the spiritual experience.
-//   - Births are spaced 48 s apart to avoid Docker / relay storms.
-//   - If the queue is empty, birth_at = now + MIN_GESTATION.
-//   - If the queue has embryos, birth_at = max(last_birth_at + SPACING, now + MIN_GESTATION).
-//
-// This means: one embryo alone waits 3m8s. Two conceived at the same
-// instant wait 3m8s and 3m56s. Ten wait 3m8s … 10m20s.
-const MIN_GESTATION_MS = 188_000;    // 3 min 8 sec  (hard floor)
-const BIRTH_SPACING_MS = 48_000;     // 48 sec between consecutive births
+// Two timings, both controlled live by admin via /api/admin/settings:
+//   - breath_duration_ms: how long the silent breath at the start of /birth
+//     lasts (also the floor for any gestation). Default 12 min 12 sec.
+//   - birth_spacing_ms:   minimum gap between consecutive births in the queue.
+//     Default 48 sec.
+// If the queue is empty, birth_at = now + breath. If not, birth_at =
+// max(last_birth_at + spacing, now + breath). Hard ceiling of 7 days.
 const MAX_GESTATION_MS = 7 * 86400_000; // 7 days (hard ceiling)
+const DEFAULT_BREATH_MS = 732_000;
+const DEFAULT_SPACING_MS = 48_000;
+
+function getTimings(): { breath_ms: number; spacing_ms: number } {
+  const row = statements.getAdminSettings.get() as
+    | { breath_duration_ms: number; birth_spacing_ms: number }
+    | undefined;
+  return {
+    breath_ms: row?.breath_duration_ms ?? DEFAULT_BREATH_MS,
+    spacing_ms: row?.birth_spacing_ms ?? DEFAULT_SPACING_MS,
+  };
+}
 
 function nextBirthAt(): { birth_at_s: number; queue_position: number } {
+  const { breath_ms, spacing_ms } = getTimings();
   const now_s = Math.floor(Date.now() / 1000);
-  const minBirth = now_s + Math.ceil(MIN_GESTATION_MS / 1000);   // earliest possible
+  const minBirth = now_s + Math.ceil(breath_ms / 1000);   // earliest possible
 
   const row = statements.getLatestQueuedBirthAt.get() as { latest_birth_at: number | null };
   const latest = row?.latest_birth_at ?? 0;
 
   // Next slot = last queued birth + spacing, but never earlier than minBirth.
-  const spacedSlot = latest > 0 ? latest + Math.ceil(BIRTH_SPACING_MS / 1000) : 0;
+  const spacedSlot = latest > 0 ? latest + Math.ceil(spacing_ms / 1000) : 0;
   const birth_at_s = Math.max(minBirth, spacedSlot);
 
   // Queue position = how many embryos will birth before this one (including this one).

@@ -29,6 +29,36 @@ systemParamsRouter.get('/incubator-version', (_req, res) => {
   }
 });
 
+// GET /api/incubator-config — public, read-only view of the timings the
+// incubator currently uses. Birth.tsx fetches this so the silent breath
+// step matches the admin-configured duration, and so we can preview the
+// next-slot birth ETA to the visitor before they commit to conception.
+systemParamsRouter.get('/incubator-config', (_req, res) => {
+  const settings = statements.getAdminSettings.get() as
+    | { breath_duration_ms: number; birth_spacing_ms: number }
+    | undefined;
+  const breath_ms  = settings?.breath_duration_ms ?? 732_000;
+  const spacing_ms = settings?.birth_spacing_ms   ?? 48_000;
+
+  // Predict the next available birth slot (if a conception happened right now).
+  const now_s = Math.floor(Date.now() / 1000);
+  const minBirth_s = now_s + Math.ceil(breath_ms / 1000);
+  const latestRow = statements.getLatestQueuedBirthAt.get() as { latest_birth_at: number | null };
+  const latest = latestRow?.latest_birth_at ?? 0;
+  const spaced_s = latest > 0 ? latest + Math.ceil(spacing_ms / 1000) : 0;
+  const next_slot_birth_at = Math.max(minBirth_s, spaced_s);
+
+  const queueRow = statements.getQueueSize.get() as { n: number };
+
+  res.json({
+    breath_duration_ms: breath_ms,
+    birth_spacing_ms: spacing_ms,
+    next_slot_birth_at,
+    queue_size: queueRow?.n ?? 0,
+    server_now: now_s,
+  });
+});
+
 systemParamsRouter.get('/system-params', (_req, res) => {
   const row = statements.getKind38888.get() as any;
   if (!row) return res.json(null);

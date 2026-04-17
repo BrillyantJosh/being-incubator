@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LogOut, ExternalLink } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { LogOut, ExternalLink, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/Logo';
@@ -9,6 +9,7 @@ import { useT } from '@/contexts/LangContext';
 import { LANGS, LANG_LABELS, Lang } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { shortHex } from '@/lib/utils';
+import { isAdmin } from '@/lib/admin';
 
 interface Being {
   name: string;
@@ -74,6 +75,16 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isAdmin(session.nostrHexId) && (
+              <Link
+                to="/admin/settings"
+                className="rounded-md border border-primary/40 bg-primary/5 px-2 py-1 text-xs text-primary hover:bg-primary/10 inline-flex items-center gap-1"
+                title="Admin"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            )}
             <label className="sr-only" htmlFor="lang-switcher">{t('dashboard.language')}</label>
             <select
               id="lang-switcher"

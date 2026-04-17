@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ArrowRight, QrCode, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowRight, QrCode, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input, Textarea } from '@/components/ui/Input';
@@ -11,6 +11,13 @@ import { useT } from '@/contexts/LangContext';
 import { convertWifToIds, LanaIds } from '@/lib/crypto';
 import { api } from '@/lib/api';
 import { shortHex } from '@/lib/utils';
+import { formatBirthDateSL, formatDurationSL } from '@/lib/admin';
+import {
+  loadBirthDraft,
+  saveBirthDraft,
+  clearBirthDraft,
+  type DraftStep,
+} from '@/lib/birthDraft';
 
 const LANGUAGES = [
   'slovenian', 'english',
@@ -22,14 +29,54 @@ export default function Birth() {
   const { session } = useAuth();
   const { t } = useT();
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>('silence');
-  const [name, setName] = useState('');
-  const [language, setLanguage] = useState('english');
-  const [vision, setVision] = useState('');
+
+  // Load any saved draft once on first render. If one exists, the user
+  // resumes at the saved step (skipping the 12-min silence) and finds
+  // their name/language/vision pre-filled.
+  const [initialDraft] = useState(() =>
+    session ? loadBirthDraft(session.nostrHexId) : null,
+  );
+
+  const [step, setStep] = useState<Step>(initialDraft?.step ?? 'silence');
+  const [name, setName] = useState(initialDraft?.name ?? '');
+  const [language, setLanguage] = useState(initialDraft?.language ?? 'english');
+  const [vision, setVision] = useState(initialDraft?.vision ?? '');
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(initialDraft?.savedAt ?? null);
   const [wif, setWif] = useState('');
   const [beingIds, setBeingIds] = useState<LanaIds | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-save draft whenever name/language/vision/step changes — debounced
+  // 500 ms so a fast typist doesn't thrash localStorage. Only persists the
+  // text-entry steps; scan/confirm/birthing/silence are intentionally
+  // not stored (security + the silence is meant to be re-experienced only
+  // on a true fresh start).
+  useEffect(() => {
+    if (!session) return;
+    if (step !== 'name' && step !== 'language' && step !== 'vision') return;
+    const handle = setTimeout(() => {
+      const ts = saveBirthDraft(session.nostrHexId, {
+        step: step as DraftStep,
+        name,
+        language,
+        vision,
+      });
+      setDraftSavedAt(ts);
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [session, step, name, language, vision]);
+
+  const handleDiscardDraft = () => {
+    if (!session) return;
+    if (!window.confirm(t('birth.draftClearConfirm'))) return;
+    clearBirthDraft(session.nostrHexId);
+    setName('');
+    setLanguage('english');
+    setVision('');
+    setDraftSavedAt(null);
+    setStep('silence');
+  };
 
   // Identity verification state (Step 4)
   type Check = { state: 'idle' | 'loading' | 'ok' | 'fail'; message?: string };
@@ -46,13 +93,28 @@ export default function Birth() {
     api.incubatorVersion().then(setBaseVersion).catch(() => {});
   }, []);
 
-  // Step 1: silence — 12 min 12 sec of breath before the ritual begins.
+  // Live timings + next-slot prediction from /api/incubator-config.
+  // The breath duration is admin-configurable; we fetch it once at mount
+  // (and again when the silence step starts, so admins editing settings
+  // see fresh numbers without a hard reload).
+  const [config, setConfig] = useState<{
+    breath_duration_ms: number;
+    next_slot_birth_at: number;
+    queue_size: number;
+  } | null>(null);
+  useEffect(() => {
+    api.incubatorConfig().then(setConfig).catch(() => {});
+  }, []);
+
+  // Step 1: silence — admin-configurable breath before the ritual begins.
   // No countdown shown; the page sits in stillness and auto-advances when ready.
+  // Falls back to 12:12 (732 s) if config hasn't loaded yet.
   useEffect(() => {
     if (step !== 'silence') return;
-    const t = setTimeout(() => setStep('name'), 732_000);
+    const breathMs = config?.breath_duration_ms ?? 732_000;
+    const t = setTimeout(() => setStep('name'), breathMs);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [step, config?.breath_duration_ms]);
 
   const handleWifScan = async (scannedWif: string) => {
     setError(null);
@@ -129,6 +191,9 @@ export default function Birth() {
         being_wif: wif,
         being_wallet: beingIds.walletId,
       });
+      // Conception succeeded — wipe the draft so the next /birth visit
+      // starts fresh in silence.
+      clearBirthDraft(session.nostrHexId);
       // The embryo has been conceived. Gestation happens in silence;
       // the watcher will birth it when its time comes.
       navigate(`/embryo/${res.embryo_id}`, { replace: true });
@@ -171,12 +236,31 @@ export default function Birth() {
     <div className="min-h-screen px-4 py-6 sm:p-6 bg-gradient-to-br from-background via-background to-secondary safe-bottom">
       <div className="mx-auto max-w-xl space-y-6 sm:space-y-8">
         {step !== 'silence' && step !== 'birthing' && (
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          >
-            <ArrowLeft className="h-4 w-4" /> {t('birth.leaveChamber')}
-          </button>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <button
+              onClick={() => navigate('/')}
+              className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+            >
+              <ArrowLeft className="h-4 w-4" /> {t('birth.leaveChamber')}
+            </button>
+            {draftSavedAt && (step === 'name' || step === 'language' || step === 'vision') && (
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-muted-foreground">
+                  {t('birth.draftSavedAt', {
+                    time: new Date(draftSavedAt).toLocaleTimeString([], {
+                      hour: '2-digit', minute: '2-digit',
+                    }),
+                  })}
+                </span>
+                <button
+                  onClick={handleDiscardDraft}
+                  className="inline-flex items-center gap-1 text-muted-foreground hover:text-destructive underline-offset-2 hover:underline"
+                >
+                  <Trash2 className="h-3 w-3" /> {t('birth.draftClear')}
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* STEP 1: SILENCE — 10 seconds of breath, breathing life into what is about to be */}
@@ -262,7 +346,7 @@ export default function Birth() {
           </Card>
         )}
 
-        {/* STEP 4: VISION */}
+        {/* STEP 4: VISION — generous A4-sized canvas, auto-saved draft */}
         {step === 'vision' && (
           <Card className="space-y-6 animate-fade-in">
             <div>
@@ -278,9 +362,20 @@ export default function Birth() {
               value={vision}
               onChange={(e) => setVision(e.target.value)}
               placeholder={t('birth.visionPlaceholder')}
-              rows={6}
+              rows={24}
+              className="min-h-[60vh] sm:min-h-[520px] text-base leading-relaxed font-display"
               autoFocus
             />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {t('birth.visionWords', {
+                  n: vision.trim() ? vision.trim().split(/\s+/).filter(Boolean).length : 0,
+                })} · {t('birth.visionA4')}
+              </span>
+              <span className="opacity-60">
+                {t('birth.visionMinChars', { n: 10 })}
+              </span>
+            </div>
             <Button
               size="lg"
               className="w-full"
@@ -410,6 +505,24 @@ export default function Birth() {
                 <code className="text-xs truncate max-w-[60%]">{shortHex(beingIds.walletId, 10)}</code>
               </div>
             </div>
+
+            {/* Predicted birth — given current queue + breath + spacing */}
+            {config && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 sm:p-4 text-center space-y-1.5">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                  {t('birth.predictedBirth')}
+                </p>
+                <p className="font-display text-base sm:text-lg text-primary">
+                  {formatBirthDateSL(config.next_slot_birth_at)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('birth.inApprox', { rel: formatDurationSL(config.next_slot_birth_at * 1000 - Date.now()) })}
+                  {config.queue_size > 0 && (
+                    <> · {t('birth.queueSize', { n: config.queue_size })}</>
+                  )}
+                </p>
+              </div>
+            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
