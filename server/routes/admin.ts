@@ -6,12 +6,11 @@ export const adminRouter = Router();
 const ADMIN_HEX = '56e8670aa65491f8595dc3a71c94aa7445dcdca755ca5f77c07218498a362061';
 const HEX64_RE = /^[0-9a-f]{64}$/i;
 
-// 5 sec hard floor on breath, 7 days hard ceiling.
-// 5 sec hard floor on spacing, 24 h ceiling.
+// 5 sec hard floor, 7 days hard ceiling on both.
 const BREATH_MIN_MS  = 5_000;
 const BREATH_MAX_MS  = 7 * 86400_000;
 const SPACING_MIN_MS = 5_000;
-const SPACING_MAX_MS = 86400_000;
+const SPACING_MAX_MS = 7 * 86400_000;
 
 function requireAdmin(adminHex: unknown): string | null {
   if (typeof adminHex !== 'string' || !HEX64_RE.test(adminHex)) return 'Missing or invalid admin_hex';
