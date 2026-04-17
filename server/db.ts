@@ -156,12 +156,21 @@ try {
 
 // Migration: beings_embryos remove UNIQUE on owner_hex for multi-being support
 try {
-  const embryoCols = db.prepare("PRAGMA index_list(beings_embryos)").all() as { name: string; unique: number }[];
-  // SQLite auto-creates "sqlite_autoindex_beings_embryos_2" for UNIQUE(owner_hex).
-  // If present, recreate table without that constraint.
-  const hasOwnerUnique = embryoCols.some(
-    (idx) => idx.unique === 1 && idx.name.includes('autoindex') && idx.name.includes('2')
-  );
+  // Detect by inspecting which column the UNIQUE auto-index covers, not by index
+  // name. The name-based check ("includes('2')") was buggy: after the migration,
+  // the new schema's `name UNIQUE` constraint also gets sqlite_autoindex_..._2,
+  // so the check fired on every startup and the migration ran in a perpetual loop
+  // (drop + recreate beings_embryos on every container start).
+  const indexes = db.prepare("PRAGMA index_list(beings_embryos)").all() as { name: string; unique: number; origin: string }[];
+  let hasOwnerUnique = false;
+  for (const idx of indexes) {
+    if (idx.unique !== 1 || idx.origin !== 'u') continue;  // only UNIQUE constraints
+    const cols = db.prepare(`PRAGMA index_info('${idx.name}')`).all() as { name: string }[];
+    if (cols.length === 1 && cols[0].name === 'owner_hex') {
+      hasOwnerUnique = true;
+      break;
+    }
+  }
   if (hasOwnerUnique) {
     console.log('[db] Migrating beings_embryos: removing UNIQUE on owner_hex');
     // Disable FK checks during table swap (embryo_thoughts references beings_embryos)
