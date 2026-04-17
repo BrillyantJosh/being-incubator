@@ -133,7 +133,6 @@ export default function AdminSettings() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Trenutno: <span className="font-mono">{formatDurationSL(unitToMs(breathValue, breathUnit))}</span>
-                <span className="opacity-60"> · najmanj 5 min</span>
               </p>
             </Card>
 

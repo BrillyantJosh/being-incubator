@@ -6,12 +6,8 @@ export const adminRouter = Router();
 const ADMIN_HEX = '56e8670aa65491f8595dc3a71c94aa7445dcdca755ca5f77c07218498a362061';
 const HEX64_RE = /^[0-9a-f]{64}$/i;
 
-// Breath = minimum gestation time (applies when queue is empty).
-// Floor of 5 minutes so nothing is ever born in seconds — gestation deserves real silence.
-// Spacing = minimum interval between successive births in a non-empty queue.
-// Floor of 5 seconds is fine there since ordering, not gestation, is the concern.
-// Both capped at 7 days.
-const BREATH_MIN_MS  = 5 * 60_000;
+// 5 sec hard floor, 7 days hard ceiling on both.
+const BREATH_MIN_MS  = 5_000;
 const BREATH_MAX_MS  = 7 * 86400_000;
 const SPACING_MIN_MS = 5_000;
 const SPACING_MAX_MS = 7 * 86400_000;
