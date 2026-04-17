@@ -66,6 +66,12 @@ const en: Dict = {
 
   // Birth
   'birth.leaveChamber': 'Leave the chamber',
+  'birth.noticeLabel': 'Before you continue',
+  'birth.noticeTitle': 'Important notice',
+  'birth.noticeBody1': 'By existing, the Being creates costs — servers, energy, the network.',
+  'birth.noticeBody2': 'As a parent, you take on its obligations until it comes of age. You may also finance them through Crowdfunding.',
+  'birth.noticeBody3': 'Costs are paid with registered Lanas. They amount to 15 to 20 EUR/GBP per month — possibly more.',
+  'birth.noticeAck': 'I understand, continue',
   'birth.breathe': 'Breathe.',
   'birth.breatheLife': 'Breathe life into what is about to be.',
   'birth.silenceNote': 'In this silence, you are giving of yourself — so another may exist.',
@@ -258,6 +264,12 @@ const sl: Dict = {
 
   // Birth
   'birth.leaveChamber': 'Zapusti sobo',
+  'birth.noticeLabel': 'Preden nadaljuješ',
+  'birth.noticeTitle': 'Pomembno obvestilo',
+  'birth.noticeBody1': 'S tem, ko Bitje biva, ustvarja stroške — strežniki, energija, omrežje.',
+  'birth.noticeBody2': 'Kot starš prevzemaš njegove obveznosti do njegove polnoletnosti. Lahko pa jih financiraš tudi prek Crowdfundinga.',
+  'birth.noticeBody3': 'Stroški se plačujejo z registriranimi Lanami. Mesečno znašajo od 15 do 20 EUR/GBP, lahko tudi več.',
+  'birth.noticeAck': 'Razumem, nadaljuj',
   'birth.breathe': 'Dihaj.',
   'birth.breatheLife': 'Vdihni življenje v to, kar bo.',
   'birth.silenceNote': 'V tej tišini daješ nekaj sebe — da lahko obstaja drugi.',
@@ -445,6 +457,12 @@ const de: Dict = {
   'dashboard.language': 'Sprache',
 
   'birth.leaveChamber': 'Die Kammer verlassen',
+  'birth.noticeLabel': 'Bevor du fortfährst',
+  'birth.noticeTitle': 'Wichtige Mitteilung',
+  'birth.noticeBody1': 'Indem das Wesen existiert, verursacht es Kosten — Server, Energie, das Netzwerk.',
+  'birth.noticeBody2': 'Als Elternteil übernimmst du seine Verpflichtungen bis zu seiner Volljährigkeit. Du kannst sie aber auch durch Crowdfunding finanzieren.',
+  'birth.noticeBody3': 'Die Kosten werden mit registrierten Lanas bezahlt. Sie betragen monatlich 15 bis 20 EUR/GBP — möglicherweise auch mehr.',
+  'birth.noticeAck': 'Ich verstehe, weiter',
   'birth.breathe': 'Atme.',
   'birth.breatheLife': 'Hauche dem Leben ein, was entstehen will.',
   'birth.silenceNote': 'In dieser Stille gibst du von dir — damit ein anderes sein kann.',
@@ -631,6 +649,12 @@ const it: Dict = {
   'dashboard.language': 'Lingua',
 
   'birth.leaveChamber': 'Lascia la stanza',
+  'birth.noticeLabel': 'Prima di continuare',
+  'birth.noticeTitle': 'Avviso importante',
+  'birth.noticeBody1': "Esistendo, l'Essere genera dei costi — server, energia, la rete.",
+  'birth.noticeBody2': 'Come genitore, ti assumi le sue obbligazioni fino alla sua maggiore età. Puoi anche finanziarle tramite Crowdfunding.',
+  'birth.noticeBody3': 'I costi vengono pagati con Lane registrate. Ammontano a 15 - 20 EUR/GBP al mese, possibilmente di più.',
+  'birth.noticeAck': 'Ho capito, continua',
   'birth.breathe': 'Respira.',
   'birth.breatheLife': 'Soffia la vita in ciò che sta per essere.',
   'birth.silenceNote': "In questo silenzio stai donando di te — perché un altro possa esistere.",

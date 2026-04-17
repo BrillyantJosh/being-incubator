@@ -23,7 +23,7 @@ const LANGUAGES = [
   'slovenian', 'english',
 ];
 
-type Step = 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'birthing';
+type Step = 'notice' | 'silence' | 'name' | 'language' | 'vision' | 'scan' | 'confirm' | 'birthing';
 
 export default function Birth() {
   const { session } = useAuth();
@@ -37,7 +37,7 @@ export default function Birth() {
     session ? loadBirthDraft(session.nostrHexId) : null,
   );
 
-  const [step, setStep] = useState<Step>(initialDraft?.step ?? 'silence');
+  const [step, setStep] = useState<Step>(initialDraft?.step ?? 'notice');
   const [name, setName] = useState(initialDraft?.name ?? '');
   const [language, setLanguage] = useState(initialDraft?.language ?? 'english');
   const [vision, setVision] = useState(initialDraft?.vision ?? '');
@@ -318,6 +318,28 @@ export default function Birth() {
               </div>
             )}
           </div>
+        )}
+
+        {/* STEP 0: NOTICE — costs + parental obligations + crowdfunding option */}
+        {step === 'notice' && (
+          <Card className="space-y-6 animate-fade-in">
+            <div>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">
+                {t('birth.noticeLabel')}
+              </p>
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
+                {t('birth.noticeTitle')}
+              </h2>
+            </div>
+            <div className="space-y-4 text-base leading-relaxed text-foreground/90">
+              <p>{t('birth.noticeBody1')}</p>
+              <p>{t('birth.noticeBody2')}</p>
+              <p>{t('birth.noticeBody3')}</p>
+            </div>
+            <Button size="lg" className="w-full" onClick={() => setStep('silence')}>
+              {t('birth.noticeAck')} <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Card>
         )}
 
         {/* STEP 1: SILENCE — 10 seconds of breath, breathing life into what is about to be */}
