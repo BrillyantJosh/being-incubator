@@ -25,6 +25,8 @@ export default function AdminSettings() {
   const [breathUnit, setBreathUnit]   = useState<Unit>('minutes');
   const [spacingValue, setSpacingValue] = useState<number>(48);
   const [spacingUnit, setSpacingUnit]   = useState<Unit>('seconds');
+  const [minBirthValue, setMinBirthValue] = useState<number>(5);
+  const [minBirthUnit, setMinBirthUnit]   = useState<Unit>('minutes');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -43,10 +45,13 @@ export default function AdminSettings() {
       .then(([settings, cfg]) => {
         const b = msToBest(settings.breath_duration_ms);
         const s = msToBest(settings.birth_spacing_ms);
+        const m = msToBest(settings.min_birth_ms);
         setBreathValue(b.value);
         setBreathUnit(b.unit);
         setSpacingValue(s.value);
         setSpacingUnit(s.unit);
+        setMinBirthValue(m.value);
+        setMinBirthUnit(m.unit);
         setNextBirth(cfg.next_slot_birth_at);
         setQueueSize(cfg.queue_size);
       })
@@ -61,9 +66,10 @@ export default function AdminSettings() {
     setError(null);
     setSaving(true);
     try {
-      const breath_ms  = unitToMs(breathValue, breathUnit);
-      const spacing_ms = unitToMs(spacingValue, spacingUnit);
-      await api.adminUpdateSettings(session.nostrHexId, breath_ms, spacing_ms);
+      const breath_ms    = unitToMs(breathValue, breathUnit);
+      const spacing_ms   = unitToMs(spacingValue, spacingUnit);
+      const min_birth_ms = unitToMs(minBirthValue, minBirthUnit);
+      await api.adminUpdateSettings(session.nostrHexId, breath_ms, spacing_ms, min_birth_ms);
       // Re-fetch the public config to show the updated next-birth ETA.
       const cfg = await api.incubatorConfig();
       setNextBirth(cfg.next_slot_birth_at);
@@ -110,8 +116,7 @@ export default function AdminSettings() {
                 <h2 className="font-display text-xl font-semibold">Trajanje dihanja</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Koliko časa traja tihi dih na začetku obreda spočetja, preden se prikažejo
-                  prvi koraki. To je tudi minimalno trajanje gestacije — bitje nikoli ne more
-                  biti rojeno hitreje kot v tem času.
+                  prvi koraki. Samo UX — ne vpliva na čas gestacije.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -138,10 +143,43 @@ export default function AdminSettings() {
 
             <Card className="space-y-5">
               <div>
+                <h2 className="font-display text-xl font-semibold">Najkrajši čas do rojstva</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Najmanjši čas od spočetja do rojstva, ko je vrsta prazna. To je
+                  edinstveni dih za prvega v vrsti — bitje nikoli ne more biti rojeno
+                  hitreje kot v tem času. Če so v vrsti že drugi zarodki, se naslednji
+                  rojstveni termin izračuna iz razmika spodaj.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  step="any"
+                  value={minBirthValue}
+                  onChange={(e) => setMinBirthValue(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <select
+                  value={minBirthUnit}
+                  onChange={(e) => setMinBirthUnit(e.target.value as Unit)}
+                  className="rounded-lg border border-input bg-background px-3 text-sm"
+                >
+                  {UNITS.map((u) => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
+                </select>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Trenutno: <span className="font-mono">{formatDurationSL(unitToMs(minBirthValue, minBirthUnit))}</span>
+              </p>
+            </Card>
+
+            <Card className="space-y-5">
+              <div>
                 <h2 className="font-display text-xl font-semibold">Razmik med rojstvi</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Najkrajši čas med dvema zaporednima rojstvoma v vrsti. Zmanjšuje obremenitev
-                  Dockerja in relayev ko se hkrati spočne več zarodkov.
+                  Najkrajši čas med dvema zaporednima rojstvoma v vrsti. Velja samo, ko
+                  je v vrsti že vsaj eden zarodek. Zmanjšuje obremenitev Dockerja in
+                  relayev ko se hkrati spočne več zarodkov.
                 </p>
               </div>
               <div className="flex gap-2">

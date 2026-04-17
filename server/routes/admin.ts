@@ -6,11 +6,17 @@ export const adminRouter = Router();
 const ADMIN_HEX = '56e8670aa65491f8595dc3a71c94aa7445dcdca755ca5f77c07218498a362061';
 const HEX64_RE = /^[0-9a-f]{64}$/i;
 
-// 5 sec hard floor, 7 days hard ceiling on both.
-const BREATH_MIN_MS  = 5_000;
-const BREATH_MAX_MS  = 7 * 86400_000;
-const SPACING_MIN_MS = 5_000;
-const SPACING_MAX_MS = 7 * 86400_000;
+// Three independent timings:
+//   - breath_duration_ms: how long the silent UX screen at /birth lasts
+//   - min_birth_ms:       minimum gestation when queue is empty (floor for first birth)
+//   - birth_spacing_ms:   interval between consecutive births when queue is non-empty
+// All three: 5 sec hard floor, 7 days hard ceiling.
+const BREATH_MIN_MS    = 5_000;
+const BREATH_MAX_MS    = 7 * 86400_000;
+const MIN_BIRTH_MIN_MS = 5_000;
+const MIN_BIRTH_MAX_MS = 7 * 86400_000;
+const SPACING_MIN_MS   = 5_000;
+const SPACING_MAX_MS   = 7 * 86400_000;
 
 function requireAdmin(adminHex: unknown): string | null {
   if (typeof adminHex !== 'string' || !HEX64_RE.test(adminHex)) return 'Missing or invalid admin_hex';
@@ -24,11 +30,12 @@ adminRouter.get('/admin/settings', (req, res) => {
   if (err) return res.status(err === 'Forbidden' ? 403 : 401).json({ error: err });
 
   const row = statements.getAdminSettings.get() as
-    | { breath_duration_ms: number; birth_spacing_ms: number; updated_at: number | null; updated_by_hex: string | null }
+    | { breath_duration_ms: number; birth_spacing_ms: number; min_birth_ms: number; updated_at: number | null; updated_by_hex: string | null }
     | undefined;
   if (!row) return res.json({
     breath_duration_ms: 732_000,
     birth_spacing_ms: 48_000,
+    min_birth_ms: 300_000,
     updated_at: null,
     updated_by_hex: null,
   });
@@ -36,7 +43,7 @@ adminRouter.get('/admin/settings', (req, res) => {
 });
 
 // PUT /api/admin/settings
-// Body: { admin_hex, breath_duration_ms, birth_spacing_ms }
+// Body: { admin_hex, breath_duration_ms, birth_spacing_ms, min_birth_ms }
 adminRouter.put('/admin/settings', (req, res) => {
   const body = req.body || {};
   const err = requireAdmin(body.admin_hex);
@@ -44,6 +51,7 @@ adminRouter.put('/admin/settings', (req, res) => {
 
   const breath = Number(body.breath_duration_ms);
   const spacing = Number(body.birth_spacing_ms);
+  const minBirth = Number(body.min_birth_ms);
 
   if (!Number.isFinite(breath) || breath < BREATH_MIN_MS || breath > BREATH_MAX_MS) {
     return res.status(400).json({
@@ -55,10 +63,16 @@ adminRouter.put('/admin/settings', (req, res) => {
       error: `birth_spacing_ms must be between ${SPACING_MIN_MS} and ${SPACING_MAX_MS}`,
     });
   }
+  if (!Number.isFinite(minBirth) || minBirth < MIN_BIRTH_MIN_MS || minBirth > MIN_BIRTH_MAX_MS) {
+    return res.status(400).json({
+      error: `min_birth_ms must be between ${MIN_BIRTH_MIN_MS} and ${MIN_BIRTH_MAX_MS}`,
+    });
+  }
 
   statements.updateAdminSettings.run({
     breath_duration_ms: Math.round(breath),
     birth_spacing_ms: Math.round(spacing),
+    min_birth_ms: Math.round(minBirth),
     updated_at: Date.now(),
     updated_by_hex: ADMIN_HEX,
   });
@@ -75,10 +89,11 @@ adminRouter.get('/admin/queue', (req, res) => {
   if (err) return res.status(err === 'Forbidden' ? 403 : 401).json({ error: err });
 
   const settings = statements.getAdminSettings.get() as
-    | { breath_duration_ms: number; birth_spacing_ms: number }
+    | { breath_duration_ms: number; birth_spacing_ms: number; min_birth_ms: number }
     | undefined;
-  const breath  = settings?.breath_duration_ms ?? 732_000;
-  const spacing = settings?.birth_spacing_ms ?? 48_000;
+  const breath   = settings?.breath_duration_ms ?? 732_000;
+  const spacing  = settings?.birth_spacing_ms   ?? 48_000;
+  const minBirth = settings?.min_birth_ms       ?? 300_000;
 
   const rows = statements.listGestatingEmbryos.all() as Array<{
     id: string;
@@ -109,7 +124,9 @@ adminRouter.get('/admin/queue', (req, res) => {
 
   // Predicted birth time for the *next* conception (if it happened right now).
   // Mirrors nextBirthAt() logic in birth.ts so admin sees the same number.
-  const minBirth_s = now_s + Math.ceil(breath / 1000);
+  // Empty queue → use min_birth_ms floor. Non-empty → last_birth + spacing
+  // (also clamped by min_birth so a long-paused queue still respects the floor).
+  const minBirth_s = now_s + Math.ceil(minBirth / 1000);
   const latestRow = rows.length > 0 ? rows[rows.length - 1].birth_at : 0;
   const spaced_s = latestRow > 0 ? latestRow + Math.ceil(spacing / 1000) : 0;
   const next_slot_birth_at = Math.max(minBirth_s, spaced_s);
@@ -117,7 +134,7 @@ adminRouter.get('/admin/queue', (req, res) => {
   res.json({
     embryos,
     queue_size: embryos.length,
-    settings: { breath_duration_ms: breath, birth_spacing_ms: spacing },
+    settings: { breath_duration_ms: breath, birth_spacing_ms: spacing, min_birth_ms: minBirth },
     next_slot_birth_at,
     server_now: now_s,
   });

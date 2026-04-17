@@ -100,12 +100,24 @@ db.exec(`
     id INTEGER PRIMARY KEY CHECK (id = 1),
     breath_duration_ms INTEGER NOT NULL DEFAULT 732000,
     birth_spacing_ms INTEGER NOT NULL DEFAULT 48000,
+    min_birth_ms INTEGER NOT NULL DEFAULT 300000,
     updated_at INTEGER,
     updated_by_hex TEXT
   );
-  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, birth_spacing_ms, updated_at)
-    VALUES (1, 732000, 48000, strftime('%s','now') * 1000);
+  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, birth_spacing_ms, min_birth_ms, updated_at)
+    VALUES (1, 732000, 48000, 300000, strftime('%s','now') * 1000);
 `);
+
+// Migration: add min_birth_ms column if upgrading from earlier schema.
+try {
+  const cols = (db.prepare("PRAGMA table_info(admin_settings)").all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes('min_birth_ms')) {
+    db.exec(`ALTER TABLE admin_settings ADD COLUMN min_birth_ms INTEGER NOT NULL DEFAULT 300000`);
+    console.log('[db] ✅ admin_settings.min_birth_ms added');
+  }
+} catch (err: any) {
+  console.error('[db] admin_settings migration error:', err?.message);
+}
 
 // Migration: beings_owners PK change (owner_hex → auto-increment id) for multi-being support
 try {
@@ -419,7 +431,7 @@ export const statements = {
 
   // ── Admin settings ───────────────────────────────────────
   getAdminSettings: db.prepare(`
-    SELECT breath_duration_ms, birth_spacing_ms, updated_at, updated_by_hex
+    SELECT breath_duration_ms, birth_spacing_ms, min_birth_ms, updated_at, updated_by_hex
     FROM admin_settings WHERE id = 1
   `),
 
@@ -427,6 +439,7 @@ export const statements = {
     UPDATE admin_settings
     SET breath_duration_ms = @breath_duration_ms,
         birth_spacing_ms   = @birth_spacing_ms,
+        min_birth_ms       = @min_birth_ms,
         updated_at         = @updated_at,
         updated_by_hex     = @updated_by_hex
     WHERE id = 1

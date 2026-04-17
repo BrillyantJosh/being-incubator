@@ -129,6 +129,7 @@ export const api = {
     request<{
       breath_duration_ms: number;
       birth_spacing_ms: number;
+      min_birth_ms: number;
       next_slot_birth_at: number;
       queue_size: number;
       server_now: number;
@@ -140,19 +141,26 @@ export const api = {
     request<{
       breath_duration_ms: number;
       birth_spacing_ms: number;
+      min_birth_ms: number;
       updated_at: number | null;
       updated_by_hex: string | null;
     }>(`/api/admin/settings?admin_hex=${encodeURIComponent(admin_hex)}`),
 
-  adminUpdateSettings: (admin_hex: string, breath_duration_ms: number, birth_spacing_ms: number) =>
+  adminUpdateSettings: (
+    admin_hex: string,
+    breath_duration_ms: number,
+    birth_spacing_ms: number,
+    min_birth_ms: number,
+  ) =>
     request<{
       breath_duration_ms: number;
       birth_spacing_ms: number;
+      min_birth_ms: number;
       updated_at: number;
       updated_by_hex: string;
     }>('/api/admin/settings', {
       method: 'PUT',
-      body: JSON.stringify({ admin_hex, breath_duration_ms, birth_spacing_ms }),
+      body: JSON.stringify({ admin_hex, breath_duration_ms, birth_spacing_ms, min_birth_ms }),
     }),
 
   adminGetQueue: (admin_hex: string) =>
@@ -175,7 +183,7 @@ export const api = {
         owner_picture: string | null;
       }>;
       queue_size: number;
-      settings: { breath_duration_ms: number; birth_spacing_ms: number };
+      settings: { breath_duration_ms: number; birth_spacing_ms: number; min_birth_ms: number };
       next_slot_birth_at: number;
       server_now: number;
     }>(`/api/admin/queue?admin_hex=${encodeURIComponent(admin_hex)}`),
