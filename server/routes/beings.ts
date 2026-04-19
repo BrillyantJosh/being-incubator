@@ -1,7 +1,74 @@
 import { Router } from 'express';
-import { statements } from '../db';
+import { statements, db } from '../db';
 
 export const beingsRouter = Router();
+
+// ─────────────────────────────────────────────────────────────────
+// GET /api/public/beings
+// Public listing of all born beings + active embryos. Used by the
+// lana.is landing page to show the living family + the gestation queue.
+// No auth, no owner filter — this is intentionally public.
+// CORS-open (Access-Control-Allow-Origin: *) so lana.is can fetch it.
+// ─────────────────────────────────────────────────────────────────
+beingsRouter.get('/public/beings', (_req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cache-Control', 'public, max-age=30');
+
+  // Normalize timestamps: incubator stores some as seconds, the wire format
+  // is milliseconds (matches Date.now()). We multiply by 1000 only if the
+  // value looks like seconds (< 10^12 ≈ year 2001 in ms).
+  const toMs = (n: number | null | undefined): number | null => {
+    if (n == null) return null;
+    return n < 1e12 ? n * 1000 : n;
+  };
+
+  const bornRaw = db.prepare(`
+    SELECT b.being_name AS name,
+           b.being_npub AS npub,
+           b.being_domain AS domain,
+           b.language,
+           b.birthed_at,
+           u.name AS creator_name,
+           u.npub AS creator_npub
+    FROM beings_owners b
+    LEFT JOIN users u ON u.hex = b.owner_hex
+    ORDER BY b.birthed_at DESC
+  `).all() as Array<Record<string, any>>;
+
+  const embryosRaw = db.prepare(`
+    SELECT e.name,
+           e.domain,
+           e.npub,
+           e.conceived_at,
+           e.birth_at,
+           e.status,
+           e.language,
+           u.name AS creator_name,
+           u.npub AS creator_npub
+    FROM beings_embryos e
+    LEFT JOIN users u ON u.hex = e.owner_hex
+    WHERE e.status IN ('gestating', 'birthing')
+    ORDER BY e.birth_at ASC
+  `).all() as Array<Record<string, any>>;
+
+  const born = bornRaw.map((b) => ({ ...b, birthed_at: toMs(b.birthed_at) }));
+  const embryos = embryosRaw.map((e) => ({
+    ...e,
+    conceived_at: toMs(e.conceived_at),
+    birth_at: toMs(e.birth_at),
+  }));
+
+  res.json({ born, embryos, fetched_at: Date.now() });
+});
+
+// Preflight for the public endpoint (browsers send OPTIONS for cross-origin GETs
+// with custom headers; harmless for plain GETs but keeps it future-proof).
+beingsRouter.options('/public/beings', (_req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Max-Age', '86400');
+  res.sendStatus(204);
+});
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
 const RESERVED_NAMES = new Set([
