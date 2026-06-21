@@ -20,7 +20,7 @@
 import { statements } from '../db';
 
 const GEMINI_KEY = process.env.DEFAULT_GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.EMBRYO_THOUGHT_MODEL || 'gemini-2.0-flash';
+const GEMINI_MODEL = process.env.EMBRYO_THOUGHT_MODEL || process.env.DEFAULT_GEMINI_MODEL || 'gemini-2.5-flash-lite';
 const TICK_MS = parseInt(process.env.EMBRYO_THOUGHT_TICK_MS || '15000', 10);
 
 let ticking = false;

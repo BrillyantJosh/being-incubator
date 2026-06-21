@@ -3,7 +3,7 @@ import { Router } from 'express';
 export const visionFeedbackRouter = Router();
 
 const GEMINI_KEY = process.env.DEFAULT_GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.VISION_FEEDBACK_MODEL || 'gemini-2.0-flash';
+const GEMINI_MODEL = process.env.VISION_FEEDBACK_MODEL || process.env.DEFAULT_GEMINI_MODEL || 'gemini-2.5-flash';
 
 // POST /api/vision-feedback
 // Body: { vision: string, language: string }
