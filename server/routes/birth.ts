@@ -7,53 +7,11 @@ export const birthRouter = Router();
 
 const PARENT_DOMAIN = process.env.BEING_PARENT_DOMAIN || 'lana.is';
 
-// ── Queue-based gestation ─────────────────────────────────────
-// Three timings, all controlled live by admin via /api/admin/settings:
-//   - breath_duration_ms: how long the silent breath UX at /birth lasts.
-//     Decoupled from gestation — purely a ritual screen duration.
-//   - min_birth_ms:       minimum time from conception to birth when the queue
-//     is empty. The floor for the very first / next-up embryo. Default 5 min.
-//   - birth_spacing_ms:   minimum gap between consecutive births. Default 48 sec.
-//     Enforced from the last *actual* birth across all history — not just the
-//     current queue. If spacing is 5 days and the last being was born 1 day
-//     ago, the next slot is 4 days from now even when no one is in the queue.
-// birth_at = max(last_birth_at + spacing, now + min_birth). Hard ceiling 7d.
-const MAX_GESTATION_MS = 7 * 86400_000; // 7 days (hard ceiling)
-const DEFAULT_BREATH_MS    = 732_000;
-const DEFAULT_SPACING_MS   = 48_000;
-const DEFAULT_MIN_BIRTH_MS = 300_000;
-
-function getTimings(): { breath_ms: number; spacing_ms: number; min_birth_ms: number } {
-  const row = statements.getAdminSettings.get() as
-    | { breath_duration_ms: number; birth_spacing_ms: number; min_birth_ms: number }
-    | undefined;
-  return {
-    breath_ms:    row?.breath_duration_ms ?? DEFAULT_BREATH_MS,
-    spacing_ms:   row?.birth_spacing_ms   ?? DEFAULT_SPACING_MS,
-    min_birth_ms: row?.min_birth_ms       ?? DEFAULT_MIN_BIRTH_MS,
-  };
-}
-
-function nextBirthAt(): { birth_at_s: number; queue_position: number } {
-  const { spacing_ms, min_birth_ms } = getTimings();
-  const now_s = Math.floor(Date.now() / 1000);
-  const minBirth = now_s + Math.ceil(min_birth_ms / 1000);   // earliest possible
-
-  const row = statements.getLatestBirthAt.get() as { latest_birth_at: number | null };
-  const latest = row?.latest_birth_at ?? 0;
-
-  // Next slot = last birth (queued OR already-birthed) + spacing, but never
-  // earlier than the min_birth floor. Including birthed embryos means the
-  // gap between successive beings holds even after the queue has emptied.
-  const spacedSlot = latest > 0 ? latest + Math.ceil(spacing_ms / 1000) : 0;
-  const birth_at_s = Math.max(minBirth, spacedSlot);
-
-  // Queue position = how many embryos will birth before this one (including this one).
-  const posRow = statements.getQueueSize.get() as { n: number };
-  const queue_position = (posRow?.n ?? 0) + 1;  // +1 for the embryo about to be inserted
-
-  return { birth_at_s, queue_position };
-}
+// Creator-chosen gestation: the parent selects the exact local date/time in
+// the browser; the client sends epoch seconds and the server validates that it
+// is a sane future instant. The incubator no longer computes birth slots.
+const MIN_BIRTH_DELAY_MS = 5_000;
+const MAX_SCHEDULE_AHEAD_MS = 10 * 365 * 86400_000;
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
 const HEX64_RE = /^[0-9a-f]{64}$/i;
@@ -86,6 +44,7 @@ birthRouter.post('/beings/birth', async (req, res) => {
     being_hex_pub,
     being_wif,
     being_wallet,
+    birth_at: requested_birth_at,
   } = body;
 
   // ── Validation ────────────────────────────────────────
@@ -108,6 +67,19 @@ birthRouter.post('/beings/birth', async (req, res) => {
   }
   if (typeof being_npub !== 'string' || !being_npub.startsWith('npub1')) {
     return res.status(400).json({ error: 'Invalid being npub' });
+  }
+  const birth_at = Number(requested_birth_at);
+  if (!Number.isSafeInteger(birth_at)) {
+    return res.status(400).json({ error: 'birth_at is required as epoch seconds' });
+  }
+  const now = Date.now();
+  const earliestBirthAt = Math.floor((now + MIN_BIRTH_DELAY_MS) / 1000);
+  const latestBirthAt = Math.floor((now + MAX_SCHEDULE_AHEAD_MS) / 1000);
+  if (birth_at < earliestBirthAt) {
+    return res.status(400).json({ error: 'Birth time must be in the future' });
+  }
+  if (birth_at > latestBirthAt) {
+    return res.status(400).json({ error: 'Birth time is too far in the future' });
   }
 
   // ── Existing being / embryo? ──────────────────────────
@@ -138,13 +110,10 @@ birthRouter.post('/beings/birth', async (req, res) => {
   }
 
   const domain = `${name}.${PARENT_DOMAIN}`;
-  const now = Date.now();
   const conceived_at = Math.floor(now / 1000);
-
-  // Queue-based scheduling: each birth gets its own slot.
-  const { birth_at_s, queue_position } = nextBirthAt();
-  const birth_at = Math.min(birth_at_s, conceived_at + Math.ceil(MAX_GESTATION_MS / 1000));
   const gestation = (birth_at - conceived_at) * 1000;
+  const queueRow = statements.getQueuePosition.get(birth_at) as { pos: number };
+  const queue_position = (queueRow?.pos ?? 0) + 1;
 
   const id = crypto.randomBytes(12).toString('hex');
 
@@ -184,7 +153,7 @@ birthRouter.post('/beings/birth', async (req, res) => {
     return res.status(500).json({ error: 'Could not conceive Embryo' });
   }
 
-  console.log(`[embryo] 🌱 conceived ${name} (${id}) — queue #${queue_position}, birth in ${Math.round(gestation / 1000)}s → ${new Date(birth_at * 1000).toISOString()}`);
+  console.log(`[embryo] 🌱 conceived ${name} (${id}) — chosen birth in ${Math.round(gestation / 1000)}s → ${new Date(birth_at * 1000).toISOString()}`);
 
   res.json({
     ok: true,

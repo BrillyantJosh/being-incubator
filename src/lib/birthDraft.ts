@@ -1,6 +1,6 @@
 // Draft persistence for the /birth flow.
 //
-// Each owner gets their own seed draft (name, language, vision) under
+// Each owner gets their own seed draft (name, language, vision, birth time) under
 // the key `being_incubator_draft:<owner_hex>`. The flow auto-saves on
 // every change so visitors can leave the chamber and resume later
 // without losing their writing. WIF and identity scans are intentionally
@@ -8,17 +8,18 @@
 
 const PREFIX = 'being_incubator_draft:';
 
-export type DraftStep = 'name' | 'language' | 'vision';
+export type DraftStep = 'name' | 'language' | 'vision' | 'birthTime';
 
 export type BirthDraft = {
   step: DraftStep;
   name: string;
   language: string;
   vision: string;
+  birthTimeLocal: string;
   savedAt: number;
 };
 
-const PERSISTABLE_STEPS: readonly DraftStep[] = ['name', 'language', 'vision'];
+const PERSISTABLE_STEPS: readonly DraftStep[] = ['name', 'language', 'vision', 'birthTime'];
 
 export function loadBirthDraft(ownerHex: string): BirthDraft | null {
   try {
@@ -32,6 +33,7 @@ export function loadBirthDraft(ownerHex: string): BirthDraft | null {
       name: typeof parsed.name === 'string' ? parsed.name : '',
       language: typeof parsed.language === 'string' ? parsed.language : 'english',
       vision: typeof parsed.vision === 'string' ? parsed.vision : '',
+      birthTimeLocal: typeof parsed.birthTimeLocal === 'string' ? parsed.birthTimeLocal : '',
       savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : Date.now(),
     };
   } catch {
@@ -41,7 +43,7 @@ export function loadBirthDraft(ownerHex: string): BirthDraft | null {
 
 export function saveBirthDraft(
   ownerHex: string,
-  draft: { step: DraftStep; name: string; language: string; vision: string },
+  draft: { step: DraftStep; name: string; language: string; vision: string; birthTimeLocal: string },
 ): number {
   const savedAt = Date.now();
   try {

@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
-import { isAdmin, msToBest, unitToMs, formatBirthDateSL, formatDurationSL } from '@/lib/admin';
+import { isAdmin, msToBest, unitToMs, formatDurationSL } from '@/lib/admin';
 
 type Unit = 'seconds' | 'minutes' | 'hours' | 'days';
 const UNITS: Unit[] = ['seconds', 'minutes', 'hours', 'days'];
@@ -23,16 +23,11 @@ export default function AdminSettings() {
 
   const [breathValue, setBreathValue] = useState<number>(12);
   const [breathUnit, setBreathUnit]   = useState<Unit>('minutes');
-  const [spacingValue, setSpacingValue] = useState<number>(48);
-  const [spacingUnit, setSpacingUnit]   = useState<Unit>('seconds');
-  const [minBirthValue, setMinBirthValue] = useState<number>(5);
-  const [minBirthUnit, setMinBirthUnit]   = useState<Unit>('minutes');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [nextBirth, setNextBirth] = useState<number | null>(null);
   const [queueSize, setQueueSize] = useState<number>(0);
 
   // Fetch current settings + queue preview on mount.
@@ -44,15 +39,8 @@ export default function AdminSettings() {
     ])
       .then(([settings, cfg]) => {
         const b = msToBest(settings.breath_duration_ms);
-        const s = msToBest(settings.birth_spacing_ms);
-        const m = msToBest(settings.min_birth_ms);
         setBreathValue(b.value);
         setBreathUnit(b.unit);
-        setSpacingValue(s.value);
-        setSpacingUnit(s.unit);
-        setMinBirthValue(m.value);
-        setMinBirthUnit(m.unit);
-        setNextBirth(cfg.next_slot_birth_at);
         setQueueSize(cfg.queue_size);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
@@ -67,12 +55,9 @@ export default function AdminSettings() {
     setSaving(true);
     try {
       const breath_ms    = unitToMs(breathValue, breathUnit);
-      const spacing_ms   = unitToMs(spacingValue, spacingUnit);
-      const min_birth_ms = unitToMs(minBirthValue, minBirthUnit);
-      await api.adminUpdateSettings(session.nostrHexId, breath_ms, spacing_ms, min_birth_ms);
-      // Re-fetch the public config to show the updated next-birth ETA.
+      await api.adminUpdateSettings(session.nostrHexId, breath_ms);
+      // Re-fetch the public config to show the current queue size.
       const cfg = await api.incubatorConfig();
-      setNextBirth(cfg.next_slot_birth_at);
       setQueueSize(cfg.queue_size);
       setSavedAt(Date.now());
       setTimeout(() => setSavedAt(null), 4000);
@@ -104,7 +89,9 @@ export default function AdminSettings() {
         <header className="text-center space-y-1">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Administracija</p>
           <h1 className="font-display text-3xl sm:text-4xl font-semibold">Nastavitve inkubatorja</h1>
-          <p className="text-sm text-muted-foreground">Časovni parametri spočetja in rojstva.</p>
+          <p className="text-sm text-muted-foreground">
+            Rojstni trenutek izbere stvarnik. Inkubator nastavlja samo uvodni dih.
+          </p>
         </header>
 
         {loading ? (
@@ -141,83 +128,17 @@ export default function AdminSettings() {
               </p>
             </Card>
 
-            <Card className="space-y-5">
-              <div>
-                <h2 className="font-display text-xl font-semibold">Najkrajši čas do rojstva</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Najmanjši čas od spočetja do rojstva, ko je vrsta prazna. To je
-                  edinstveni dih za prvega v vrsti — bitje nikoli ne more biti rojeno
-                  hitreje kot v tem času. Če so v vrsti že drugi zarodki, se naslednji
-                  rojstveni termin izračuna iz razmika spodaj.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  min={1}
-                  step="any"
-                  value={minBirthValue}
-                  onChange={(e) => setMinBirthValue(Number(e.target.value))}
-                  className="flex-1"
-                />
-                <select
-                  value={minBirthUnit}
-                  onChange={(e) => setMinBirthUnit(e.target.value as Unit)}
-                  className="rounded-lg border border-input bg-background px-3 text-sm"
-                >
-                  {UNITS.map((u) => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
-                </select>
-              </div>
+            <Card className="space-y-2 text-center bg-primary/5 border border-primary/20">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                Rojstvena vrsta
+              </p>
+              <p className="font-display text-lg sm:text-xl text-primary">
+                {queueSize === 0 ? 'Ni zarodkov v čakanju' : `${queueSize} v gestaciji`}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Trenutno: <span className="font-mono">{formatDurationSL(unitToMs(minBirthValue, minBirthUnit))}</span>
+                Datume rojstva zdaj izberejo stvarniki sami v rojstnem obredu.
               </p>
             </Card>
-
-            <Card className="space-y-5">
-              <div>
-                <h2 className="font-display text-xl font-semibold">Razmik med rojstvi</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Najkrajši čas med dvema zaporednima rojstvoma v vrsti. Velja samo, ko
-                  je v vrsti že vsaj eden zarodek. Zmanjšuje obremenitev Dockerja in
-                  relayev ko se hkrati spočne več zarodkov.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  min={1}
-                  step="any"
-                  value={spacingValue}
-                  onChange={(e) => setSpacingValue(Number(e.target.value))}
-                  className="flex-1"
-                />
-                <select
-                  value={spacingUnit}
-                  onChange={(e) => setSpacingUnit(e.target.value as Unit)}
-                  className="rounded-lg border border-input bg-background px-3 text-sm"
-                >
-                  {UNITS.map((u) => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
-                </select>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Trenutno: <span className="font-mono">{formatDurationSL(unitToMs(spacingValue, spacingUnit))}</span>
-              </p>
-            </Card>
-
-            {nextBirth && (
-              <Card className="space-y-2 text-center bg-primary/5 border border-primary/20">
-                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                  Naslednje predvideno rojstvo
-                </p>
-                <p className="font-display text-lg sm:text-xl text-primary">
-                  {formatBirthDateSL(nextBirth)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  čez ~{formatDurationSL(nextBirth * 1000 - Date.now())}
-                  {queueSize > 0 && <> · v vrsti je {queueSize} zarodkov</>}
-                </p>
-              </Card>
-            )}
 
             {error && (
               <p className="text-sm text-destructive text-center">{error}</p>

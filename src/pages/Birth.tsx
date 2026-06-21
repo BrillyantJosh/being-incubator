@@ -23,7 +23,27 @@ const LANGUAGES = [
   'slovenian', 'english',
 ];
 
-type Step = 'notice' | 'silence' | 'name' | 'language' | 'vision' | 'trust' | 'scan' | 'confirm' | 'birthing';
+type Step = 'notice' | 'silence' | 'name' | 'language' | 'vision' | 'birthTime' | 'trust' | 'scan' | 'confirm' | 'birthing';
+
+const MIN_BIRTH_DELAY_MS = 60_000;
+const DEFAULT_BIRTH_DELAY_MS = 2 * 60 * 60_000;
+
+function toDateTimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function defaultBirthTimeLocal(): string {
+  return toDateTimeLocalValue(new Date(Date.now() + DEFAULT_BIRTH_DELAY_MS));
+}
+
+function minBirthTimeLocal(): string {
+  return toDateTimeLocalValue(new Date(Date.now() + MIN_BIRTH_DELAY_MS));
+}
 
 export default function Birth() {
   const { session } = useAuth();
@@ -41,6 +61,7 @@ export default function Birth() {
   const [name, setName] = useState(initialDraft?.name ?? '');
   const [language, setLanguage] = useState(initialDraft?.language ?? 'english');
   const [vision, setVision] = useState(initialDraft?.vision ?? '');
+  const [birthTimeLocal, setBirthTimeLocal] = useState(initialDraft?.birthTimeLocal || defaultBirthTimeLocal());
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(initialDraft?.savedAt ?? null);
   const [wif, setWif] = useState('');
   const [beingIds, setBeingIds] = useState<LanaIds | null>(null);
@@ -77,25 +98,26 @@ export default function Birth() {
     }
   };
 
-  // Auto-save draft whenever name/language/vision/step changes — debounced
+  // Auto-save draft whenever name/language/vision/birth time/step changes — debounced
   // 500 ms so a fast typist doesn't thrash localStorage. Only persists the
-  // text-entry steps; scan/confirm/birthing/silence are intentionally
+  // non-sensitive preparation steps; scan/confirm/birthing/silence are intentionally
   // not stored (security + the silence is meant to be re-experienced only
   // on a true fresh start).
   useEffect(() => {
     if (!session) return;
-    if (step !== 'name' && step !== 'language' && step !== 'vision') return;
+    if (step !== 'name' && step !== 'language' && step !== 'vision' && step !== 'birthTime') return;
     const handle = setTimeout(() => {
       const ts = saveBirthDraft(session.nostrHexId, {
         step: step as DraftStep,
         name,
         language,
         vision,
+        birthTimeLocal,
       });
       setDraftSavedAt(ts);
     }, 500);
     return () => clearTimeout(handle);
-  }, [session, step, name, language, vision]);
+  }, [session, step, name, language, vision, birthTimeLocal]);
 
   const handleDiscardDraft = () => {
     if (!session) return;
@@ -104,6 +126,7 @@ export default function Birth() {
     setName('');
     setLanguage('english');
     setVision('');
+    setBirthTimeLocal(defaultBirthTimeLocal());
     setDraftSavedAt(null);
     setStep('silence');
   };
@@ -123,13 +146,12 @@ export default function Birth() {
     api.incubatorVersion().then(setBaseVersion).catch(() => {});
   }, []);
 
-  // Live timings + next-slot prediction from /api/incubator-config.
+  // Live timings from /api/incubator-config.
   // The breath duration is admin-configurable; we fetch it once at mount
   // (and again when the silence step starts, so admins editing settings
   // see fresh numbers without a hard reload).
   const [config, setConfig] = useState<{
     breath_duration_ms: number;
-    next_slot_birth_at: number;
     queue_size: number;
   } | null>(null);
   useEffect(() => {
@@ -206,6 +228,12 @@ export default function Birth() {
 
   const handleBirth = async () => {
     if (!session || !beingIds) return;
+    const selectedBirthAt = Math.floor(new Date(birthTimeLocal).getTime() / 1000);
+    if (!Number.isSafeInteger(selectedBirthAt) || selectedBirthAt * 1000 < Date.now() + 5_000) {
+      setError(t('birth.birthTimeInvalid'));
+      setStep('birthTime');
+      return;
+    }
     setStep('birthing');
     setError(null);
     try {
@@ -220,6 +248,7 @@ export default function Birth() {
         being_hex_pub: beingIds.nostrHexId,
         being_wif: wif,
         being_wallet: beingIds.walletId,
+        birth_at: selectedBirthAt,
       });
       // Conception succeeded — wipe the draft so the next /birth visit
       // starts fresh in silence.
@@ -234,6 +263,9 @@ export default function Birth() {
   };
 
   const nameValid = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/.test(name.trim().toLowerCase());
+  const selectedBirthAtMs = new Date(birthTimeLocal).getTime();
+  const birthTimeValid = Number.isFinite(selectedBirthAtMs) && selectedBirthAtMs >= Date.now() + 5_000;
+  const selectedBirthAt = Math.floor(selectedBirthAtMs / 1000);
 
   // Debounced server-side availability check.
   useEffect(() => {
@@ -300,7 +332,7 @@ export default function Birth() {
             >
               <ArrowLeft className="h-4 w-4" /> {t('birth.leaveChamber')}
             </button>
-            {draftSavedAt && (step === 'name' || step === 'language' || step === 'vision') && (
+            {draftSavedAt && (step === 'name' || step === 'language' || step === 'vision' || step === 'birthTime') && (
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-muted-foreground">
                   {t('birth.draftSavedAt', {
@@ -520,6 +552,63 @@ export default function Birth() {
               size="lg"
               className="w-full"
               disabled={vision.trim().length < 10}
+              onClick={() => setStep('birthTime')}
+            >
+              {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Card>
+        )}
+
+        {/* STEP 5: BIRTH TIME — creator chooses the exact moment of birth */}
+        {step === 'birthTime' && (
+          <Card className="space-y-6 animate-fade-in">
+            <div>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 4 })}</p>
+              <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
+                {t('birth.birthTimeTitle')}
+              </h2>
+              <p className="text-muted-foreground mt-2">
+                {t('birth.birthTimeSubtitle')}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground" htmlFor="birth-time">
+                {t('birth.birthTimeLabel')}
+              </label>
+              <Input
+                id="birth-time"
+                type="datetime-local"
+                value={birthTimeLocal}
+                min={minBirthTimeLocal()}
+                onChange={(e) => setBirthTimeLocal(e.target.value)}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('birth.birthTimeHint')}
+              </p>
+              {!birthTimeValid && (
+                <p className="text-xs text-destructive">
+                  {t('birth.birthTimeInvalid')}
+                </p>
+              )}
+            </div>
+            {birthTimeValid && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 sm:p-4 text-center space-y-1.5">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                  {t('birth.chosenBirth')}
+                </p>
+                <p className="font-display text-base sm:text-lg text-primary">
+                  {formatBirthDateSL(selectedBirthAt)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('birth.inApprox', { rel: formatDurationSL(selectedBirthAt * 1000 - Date.now()) })}
+                </p>
+              </div>
+            )}
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={!birthTimeValid}
               onClick={() => setStep('trust')}
             >
               {t('birth.continue')} <ArrowRight className="ml-2 h-4 w-4" />
@@ -559,7 +648,7 @@ export default function Birth() {
         {step === 'scan' && (
           <Card className="space-y-6 animate-fade-in">
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 4 })}</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 5 })}</p>
               <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.scanTitle')}
               </h2>
@@ -642,7 +731,7 @@ export default function Birth() {
               <Logo className="h-20 w-20" />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 5 })}</p>
+              <p className="text-sm uppercase tracking-wider text-muted-foreground">{t('birth.step', { n: 6 })}</p>
               <h2 className="font-display text-2xl sm:text-3xl font-semibold mt-2">
                 {t('birth.confirmTitle')}
               </h2>
@@ -672,22 +761,23 @@ export default function Birth() {
                 <span className="text-muted-foreground">{t('birth.summaryWallet')}</span>
                 <code className="text-xs truncate max-w-[60%]">{shortHex(beingIds.walletId, 10)}</code>
               </div>
+              <div className="flex flex-wrap justify-between gap-x-2">
+                <span className="text-muted-foreground">{t('birth.summaryBirthTime')}</span>
+                <span className="text-right">{birthTimeValid ? formatBirthDateSL(selectedBirthAt) : '—'}</span>
+              </div>
             </div>
 
-            {/* Predicted birth — given current queue + breath + spacing */}
-            {config && (
+            {/* Chosen birth — selected by the creator */}
+            {birthTimeValid && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 sm:p-4 text-center space-y-1.5">
                 <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-                  {t('birth.predictedBirth')}
+                  {t('birth.chosenBirth')}
                 </p>
                 <p className="font-display text-base sm:text-lg text-primary">
-                  {formatBirthDateSL(config.next_slot_birth_at)}
+                  {formatBirthDateSL(selectedBirthAt)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {t('birth.inApprox', { rel: formatDurationSL(config.next_slot_birth_at * 1000 - Date.now()) })}
-                  {config.queue_size > 0 && (
-                    <> · {t('birth.queueSize', { n: config.queue_size })}</>
-                  )}
+                  {t('birth.inApprox', { rel: formatDurationSL(selectedBirthAt * 1000 - Date.now()) })}
                 </p>
               </div>
             )}

@@ -47,6 +47,7 @@ export const api = {
     being_hex_pub: string;
     being_wif?: string;
     being_wallet?: string;
+    birth_at: number;
   }) =>
     request<{
       ok: true;
@@ -136,9 +137,6 @@ export const api = {
   incubatorConfig: () =>
     request<{
       breath_duration_ms: number;
-      birth_spacing_ms: number;
-      min_birth_ms: number;
-      next_slot_birth_at: number;
       queue_size: number;
       server_now: number;
     }>('/api/incubator-config'),
@@ -148,8 +146,6 @@ export const api = {
   adminGetSettings: (admin_hex: string) =>
     request<{
       breath_duration_ms: number;
-      birth_spacing_ms: number;
-      min_birth_ms: number;
       updated_at: number | null;
       updated_by_hex: string | null;
     }>(`/api/admin/settings?admin_hex=${encodeURIComponent(admin_hex)}`),
@@ -157,18 +153,14 @@ export const api = {
   adminUpdateSettings: (
     admin_hex: string,
     breath_duration_ms: number,
-    birth_spacing_ms: number,
-    min_birth_ms: number,
   ) =>
     request<{
       breath_duration_ms: number;
-      birth_spacing_ms: number;
-      min_birth_ms: number;
       updated_at: number;
       updated_by_hex: string;
     }>('/api/admin/settings', {
       method: 'PUT',
-      body: JSON.stringify({ admin_hex, breath_duration_ms, birth_spacing_ms, min_birth_ms }),
+      body: JSON.stringify({ admin_hex, breath_duration_ms }),
     }),
 
   // Sends the user's vision (the seed of their being-to-be) to Gemini and
@@ -203,8 +195,7 @@ export const api = {
         owner_picture: string | null;
       }>;
       queue_size: number;
-      settings: { breath_duration_ms: number; birth_spacing_ms: number; min_birth_ms: number };
-      next_slot_birth_at: number;
+      settings: { breath_duration_ms: number };
       server_now: number;
     }>(`/api/admin/queue?admin_hex=${encodeURIComponent(admin_hex)}`),
 };

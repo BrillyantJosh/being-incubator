@@ -99,8 +99,7 @@ export default function AdminQueue() {
               <p className="text-muted-foreground">Trenutno ni nobenega zarodka v gestaciji.</p>
               {data && (
                 <p className="text-xs text-muted-foreground">
-                  Naslednje rojstvo (če bi se kdo prijavil zdaj):{' '}
-                  <span className="font-mono text-primary">{formatBirthDateSL(data.next_slot_birth_at)}</span>
+                  Naslednji stvarnik bo sam izbral datum in uro rojstva.
                 </p>
               )}
             </Card>
@@ -109,10 +108,6 @@ export default function AdminQueue() {
                 <div className="flex justify-between">
                   <span>Trajanje dihanja</span>
                   <span className="font-mono">{formatDurationSL(data.settings.breath_duration_ms)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Razmik med rojstvi</span>
-                  <span className="font-mono">{formatDurationSL(data.settings.birth_spacing_ms)}</span>
                 </div>
               </Card>
             )}
@@ -205,18 +200,12 @@ export default function AdminQueue() {
 
             <Card className="text-xs text-muted-foreground space-y-1">
               <div className="flex justify-between">
-                <span>Naslednji prosti slot</span>
-                <span className="font-mono text-primary">
-                  {formatBirthDateSL(data.next_slot_birth_at)}
-                </span>
-              </div>
-              <div className="flex justify-between">
                 <span>Trajanje dihanja</span>
                 <span className="font-mono">{formatDurationSL(data.settings.breath_duration_ms)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Razmik med rojstvi</span>
-                <span className="font-mono">{formatDurationSL(data.settings.birth_spacing_ms)}</span>
+                <span>Način rojstva</span>
+                <span className="font-mono">izbere stvarnik</span>
               </div>
             </Card>
 

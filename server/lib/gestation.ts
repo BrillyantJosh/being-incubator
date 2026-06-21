@@ -12,9 +12,9 @@ import { publishBirthCertificate, publishBeingProfile } from './publish';
 
 const BIRTH_SCRIPT = process.env.BIRTH_SCRIPT || '/opt/beings/incubator/birth.sh';
 const CHECK_INTERVAL_MS = parseInt(process.env.EMBRYO_CHECK_INTERVAL_MS || '20000', 10);
-// Sequential births: one at a time. The queue already spaces births 48 s apart
-// via birth_at scheduling, so concurrency > 1 would only matter if the watcher
-// fell behind (crash recovery). Even then, sequential keeps Docker + relays calm.
+// Sequential births: one at a time. Creators choose birth_at themselves, so a
+// few births can become due together. Sequential processing keeps Docker and
+// relays calm without taking the timing choice away from creators.
 const BIRTH_CONCURRENCY = 1;
 
 let running = false;

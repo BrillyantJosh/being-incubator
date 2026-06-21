@@ -29,36 +29,20 @@ systemParamsRouter.get('/incubator-version', (_req, res) => {
   }
 });
 
-// GET /api/incubator-config — public, read-only view of the timings the
-// incubator currently uses. Birth.tsx fetches this so the silent breath
-// step matches the admin-configured duration, and so we can preview the
-// next-slot birth ETA to the visitor before they commit to conception.
+// GET /api/incubator-config — public, read-only view of the few timings the
+// incubator still owns. Birth.tsx uses breath_duration_ms for the opening
+// silence; the actual birth date/time is now chosen by the creator.
 systemParamsRouter.get('/incubator-config', (_req, res) => {
   const settings = statements.getAdminSettings.get() as
-    | { breath_duration_ms: number; birth_spacing_ms: number; min_birth_ms: number }
+    | { breath_duration_ms: number }
     | undefined;
   const breath_ms    = settings?.breath_duration_ms ?? 732_000;
-  const spacing_ms   = settings?.birth_spacing_ms   ?? 48_000;
-  const min_birth_ms = settings?.min_birth_ms       ?? 300_000;
 
-  // Predict the next available birth slot (if a conception happened right now).
-  // Spacing is enforced from the last *actual* birth across all history, so an
-  // empty queue still respects the gap. When even that last birth was longer
-  // than spacing ago, the min_birth floor takes over.
   const now_s = Math.floor(Date.now() / 1000);
-  const minBirth_s = now_s + Math.ceil(min_birth_ms / 1000);
-  const latestRow = statements.getLatestBirthAt.get() as { latest_birth_at: number | null };
-  const latest = latestRow?.latest_birth_at ?? 0;
-  const spaced_s = latest > 0 ? latest + Math.ceil(spacing_ms / 1000) : 0;
-  const next_slot_birth_at = Math.max(minBirth_s, spaced_s);
-
   const queueRow = statements.getQueueSize.get() as { n: number };
 
   res.json({
     breath_duration_ms: breath_ms,
-    birth_spacing_ms: spacing_ms,
-    min_birth_ms,
-    next_slot_birth_at,
     queue_size: queueRow?.n ?? 0,
     server_now: now_s,
   });

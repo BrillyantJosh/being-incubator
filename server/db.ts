@@ -99,29 +99,14 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS admin_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     breath_duration_ms INTEGER NOT NULL DEFAULT 732000,
-    birth_spacing_ms INTEGER NOT NULL DEFAULT 48000,
-    min_birth_ms INTEGER NOT NULL DEFAULT 300000,
     updated_at INTEGER,
     updated_by_hex TEXT
   );
 `);
 
-// Migration: add min_birth_ms column if upgrading from earlier schema.
-// Must run BEFORE the seed INSERT below — the INSERT references min_birth_ms
-// and SQLite validates column names at parse time even for OR IGNORE no-ops.
-try {
-  const cols = (db.prepare("PRAGMA table_info(admin_settings)").all() as { name: string }[]).map((c) => c.name);
-  if (!cols.includes('min_birth_ms')) {
-    db.exec(`ALTER TABLE admin_settings ADD COLUMN min_birth_ms INTEGER NOT NULL DEFAULT 300000`);
-    console.log('[db] ✅ admin_settings.min_birth_ms added');
-  }
-} catch (err: any) {
-  console.error('[db] admin_settings migration error:', err?.message);
-}
-
 db.exec(`
-  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, birth_spacing_ms, min_birth_ms, updated_at)
-    VALUES (1, 732000, 48000, 300000, strftime('%s','now') * 1000);
+  INSERT OR IGNORE INTO admin_settings (id, breath_duration_ms, updated_at)
+    VALUES (1, 732000, strftime('%s','now') * 1000);
 `);
 
 // Migration: beings_owners PK change (owner_hex → auto-increment id) for multi-being support
@@ -420,20 +405,6 @@ export const statements = {
     WHERE status = 'gestating'
   `),
 
-  // Latest birth across the whole history — includes already-birthed embryos,
-  // not just queued ones. Spacing must be respected from the last *actual*
-  // birth even when the queue is currently empty: if the spacing is 5 days
-  // and the last being was born 1 day ago, the next slot is 4 days from now,
-  // not "right now + min_birth_ms". For queued (gestating/birthing) embryos
-  // we use the scheduled birth_at; for completed ones (birthed) we use the
-  // actual birthed_at — falling back to birth_at via COALESCE just in case.
-  // Failed embryos are excluded — a failed birth never consumed a slot.
-  getLatestBirthAt: db.prepare(`
-    SELECT MAX(COALESCE(birthed_at, birth_at)) AS latest_birth_at
-    FROM beings_embryos
-    WHERE status IN ('gestating', 'birthing', 'birthed')
-  `),
-
   // Queue position: how many embryos are scheduled to birth before a given time.
   getQueuePosition: db.prepare(`
     SELECT COUNT(*) AS pos
@@ -451,15 +422,13 @@ export const statements = {
 
   // ── Admin settings ───────────────────────────────────────
   getAdminSettings: db.prepare(`
-    SELECT breath_duration_ms, birth_spacing_ms, min_birth_ms, updated_at, updated_by_hex
+    SELECT breath_duration_ms, updated_at, updated_by_hex
     FROM admin_settings WHERE id = 1
   `),
 
   updateAdminSettings: db.prepare(`
     UPDATE admin_settings
     SET breath_duration_ms = @breath_duration_ms,
-        birth_spacing_ms   = @birth_spacing_ms,
-        min_birth_ms       = @min_birth_ms,
         updated_at         = @updated_at,
         updated_by_hex     = @updated_by_hex
     WHERE id = 1
