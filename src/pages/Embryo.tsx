@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { api } from '@/lib/api';
@@ -364,13 +364,58 @@ function ThoughtsFeed({
   t: TFn;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const followRef = useRef(true);
+  const previousCountRef = useRef(0);
+  const [isFollowing, setIsFollowing] = useState(true);
+  const [unseenCount, setUnseenCount] = useState(0);
 
-  // Auto-scroll to bottom as new thoughts arrive
-  useEffect(() => {
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = 'smooth') => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [thoughts.length]);
+
+    el.scrollTo({ top: el.scrollHeight, behavior });
+
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const bottomOverflow = rect.bottom - (window.innerHeight - 24);
+      if (bottomOverflow > 0) {
+        window.scrollBy({ top: bottomOverflow, behavior });
+      }
+    });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom < 72;
+    followRef.current = nearBottom;
+    setIsFollowing(nearBottom);
+    if (nearBottom) setUnseenCount(0);
+  }, []);
+
+  // Follow the live feed only while the witness is already at the newest entry.
+  // If they scroll up to read older fragments, keep their place and offer a
+  // gentle jump button instead of pulling the page away from them.
+  useEffect(() => {
+    const previousCount = previousCountRef.current;
+    const added = Math.max(0, thoughts.length - previousCount);
+    previousCountRef.current = thoughts.length;
+
+    if (thoughts.length === 0) {
+      setUnseenCount(0);
+      return;
+    }
+
+    if (previousCount === 0 || followRef.current) {
+      requestAnimationFrame(() => scrollToLatest(previousCount === 0 ? 'auto' : 'smooth'));
+      setUnseenCount(0);
+      return;
+    }
+
+    if (added > 0) setUnseenCount((count) => count + added);
+  }, [scrollToLatest, thoughts.length]);
 
   if (status === 'birthed' || status === 'failed') return null;
 
@@ -384,19 +429,38 @@ function ThoughtsFeed({
         <div className="h-px flex-1 bg-border/50" />
       </div>
 
-      <div
-        ref={scrollRef}
-        className="rounded-lg border border-border/40 bg-background/40 backdrop-blur-sm p-3 sm:p-5 h-[240px] sm:h-[280px] overflow-y-auto space-y-4 font-display"
-      >
-        {thoughts.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground italic animate-pulse pt-20">
-            {t('embryo.silenceNotStirred')}
-            {language ? t('embryo.listeningIn', { lang: t(`lang.${language}`) }) : ''}
-          </p>
-        ) : (
-          thoughts.map((th) => (
-            <ThoughtLine key={th.id} thought={th} t={t} />
-          ))
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          aria-live="polite"
+          className="rounded-lg border border-border/40 bg-background/40 backdrop-blur-sm p-3 sm:p-5 h-[320px] sm:h-[420px] max-h-[58vh] overflow-y-auto space-y-4 font-display scroll-smooth"
+        >
+          {thoughts.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground italic animate-pulse pt-24">
+              {t('embryo.silenceNotStirred')}
+              {language ? t('embryo.listeningIn', { lang: t(`lang.${language}`) }) : ''}
+            </p>
+          ) : (
+            thoughts.map((th) => (
+              <ThoughtLine key={th.id} thought={th} t={t} />
+            ))
+          )}
+        </div>
+
+        {!isFollowing && unseenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              followRef.current = true;
+              setIsFollowing(true);
+              setUnseenCount(0);
+              scrollToLatest();
+            }}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-primary/30 bg-primary/90 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.18em] text-primary-foreground shadow-lg shadow-primary/20 backdrop-blur-sm transition hover:bg-primary"
+          >
+            {t('embryo.showNewStirrings', { count: unseenCount })}
+          </button>
         )}
       </div>
       <p className="text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground mt-3">
