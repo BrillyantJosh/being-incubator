@@ -2,6 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { nip19 } from 'nostr-tools';
 import { statements } from '../db';
+import { HEX64_RE, validateCreatorBeingBoundary } from '../lib/identity';
 
 export const birthRouter = Router();
 
@@ -14,7 +15,6 @@ const MIN_BIRTH_DELAY_MS = 5_000;
 const MAX_SCHEDULE_AHEAD_MS = 10 * 365 * 86400_000;
 
 const NAME_RE = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/;
-const HEX64_RE = /^[0-9a-f]{64}$/i;
 // Lana WIF: base58-encoded with version byte 0xB0 (compressed, starts with "T")
 // or 0x41 (uncompressed). Previous regex [5KL9c] was Bitcoin-only and rejected
 // every real Lana key. We use the base58 alphabet (excludes 0, O, I, l) and
@@ -48,7 +48,9 @@ birthRouter.post('/beings/birth', async (req, res) => {
   } = body;
 
   // ── Validation ────────────────────────────────────────
-  if (!HEX64_RE.test(owner_hex || '')) return res.status(400).json({ error: 'Invalid owner_hex' });
+  const boundary = validateCreatorBeingBoundary({ owner_hex, being_hex_pub });
+  if (!boundary.ok) return res.status(400).json({ error: boundary.error });
+
   if (typeof name !== 'string' || !NAME_RE.test(name)) {
     return res.status(400).json({ error: 'Invalid name (3-32 chars, lowercase, a-z 0-9 -)' });
   }

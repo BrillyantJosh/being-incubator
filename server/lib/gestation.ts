@@ -9,6 +9,7 @@
 import { spawn } from 'child_process';
 import { db, statements } from '../db';
 import { publishBirthCertificate, publishBeingProfile } from './publish';
+import { validateCreatorBeingBoundary } from './identity';
 
 const BIRTH_SCRIPT = process.env.BIRTH_SCRIPT || '/opt/beings/incubator/birth.sh';
 const CHECK_INTERVAL_MS = parseInt(process.env.EMBRYO_CHECK_INTERVAL_MS || '20000', 10);
@@ -67,6 +68,17 @@ function runBirthScript(e: EmbryoRow): Promise<{ stdout: string; stderr: string;
 async function birthEmbryo(e: EmbryoRow) {
   console.log(`[gestation] 🌱 → 👶 birthing ${e.name} (${e.id})`);
   statements.setEmbryoStatus.run({ id: e.id, status: 'birthing' });
+
+  const boundary = validateCreatorBeingBoundary({
+    owner_hex: e.father_hex || e.owner_hex,
+    being_hex_pub: e.hex_pub,
+  });
+  if (!boundary.ok) {
+    const error = `identity boundary failed: ${boundary.error}`;
+    statements.failEmbryoBirth.run({ id: e.id, error, birth_logs: '' });
+    console.error(`[gestation] ❌ ${error} for ${e.name}`);
+    return;
+  }
 
   let logs = '';
   try {
