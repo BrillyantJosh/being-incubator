@@ -65,6 +65,11 @@ export default function Birth() {
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(initialDraft?.savedAt ?? null);
   const [wif, setWif] = useState('');
   const [beingIds, setBeingIds] = useState<LanaIds | null>(null);
+  // Manual WIF entry — a camera is not always usable (no permission, poor
+  // light, a key that exists only as text), so typing/pasting it must work too.
+  const [manualWif, setManualWif] = useState('');
+  const [showManualWif, setShowManualWif] = useState(false);
+  const [manualBusy, setManualBusy] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -180,6 +185,22 @@ export default function Birth() {
       runIdentityChecks(ids);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('birth.invalidWif'));
+    }
+  };
+
+  // Typed/pasted WIF takes the SAME path as a scanned one — the balance,
+  // registration and every other identity check must not depend on how the key
+  // arrived. The value is cleared from the field once it is accepted.
+  const submitManualWif = async () => {
+    const value = manualWif.trim();
+    if (!value || manualBusy) return;
+    setManualBusy(true);
+    try {
+      await handleWifScan(value);
+      setManualWif('');
+      setShowManualWif(false);
+    } finally {
+      setManualBusy(false);
     }
   };
 
@@ -658,9 +679,50 @@ export default function Birth() {
             </div>
 
             {!beingIds ? (
-              <Button size="lg" className="w-full" onClick={() => setScannerOpen(true)}>
-                <QrCode className="mr-2 h-5 w-5" /> {t('birth.scanWif')}
-              </Button>
+              <div className="space-y-4">
+                <Button size="lg" className="w-full" onClick={() => setScannerOpen(true)}>
+                  <QrCode className="mr-2 h-5 w-5" /> {t('birth.scanWif')}
+                </Button>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">{t('birth.or')}</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Input
+                      type={showManualWif ? 'text' : 'password'}
+                      value={manualWif}
+                      onChange={(e) => setManualWif(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void submitManualWif(); } }}
+                      placeholder={t('birth.pasteWif')}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      disabled={manualBusy}
+                      className="pr-16 font-mono text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowManualWif((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary underline"
+                    >
+                      {showManualWif ? t('birth.hideWif') : t('birth.showWif')}
+                    </button>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => void submitManualWif()}
+                    disabled={manualBusy || !manualWif.trim()}
+                  >
+                    {manualBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('birth.useWif')}
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-4">
                 <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3 sm:p-4">
@@ -688,6 +750,8 @@ export default function Birth() {
                     onClick={() => {
                       setBeingIds(null);
                       setWif('');
+                      setManualWif('');
+                      setShowManualWif(false);
                       setBalanceCheck({ state: 'idle' });
                       setRegistrationCheck({ state: 'idle' });
                       setRegisterState({ state: 'idle' });
