@@ -1,30 +1,57 @@
 import { Router } from 'express';
-import fs from 'fs';
+import { execFileSync } from 'child_process';
 import { statements } from '../db';
 
 export const systemParamsRouter = Router();
 
-const STAMP_PATH = process.env.SPACE_BETWEEN_STAMP_PATH || '/opt/beings/incubator/current-space-between.txt';
+const BEING_IMAGE = process.env.BEING_IMAGE || 'being3:latest';
 
-// GET /api/incubator-version — which space-between version will newborn
-// beings be built from? Reads the stamp file written by space-between's
-// deploy.sh on the incubator host.
+// GET /api/incubator-version — which code will a newborn actually run?
+//
+// This used to read a stamp file that space-between's deploy.sh wrote. That
+// answer was true until 2026-08-08, when births moved to being3 — after which
+// the page kept telling every visitor their being would be built from a
+// space-between commit that no newborn had touched for months. A stamp is a
+// promise made by whoever last remembered to write it.
+//
+// So ask the thing itself. birth.sh runs `docker compose up -d` with this
+// image, and this container has the docker socket to do exactly that, so the
+// image IS the answer — and it cannot drift, because it is the same object
+// the birth uses. BEING_VERSION comes from the build arg when set; otherwise
+// the short image digest identifies the build unambiguously.
+type VersionInfo = { version: string; sha: string | null; date: string | null; branch: string | null; deployed_at: string | null };
+let cached: { at: number; value: VersionInfo } | null = null;
+const CACHE_MS = 60_000;
+
+const readImageVersion = (): VersionInfo => {
+  const out = execFileSync(
+    'docker',
+    ['image', 'inspect', BEING_IMAGE, '--format', '{{.Id}}\t{{.Created}}\t{{range .Config.Env}}{{println .}}{{end}}'],
+    { encoding: 'utf8', timeout: 5000 },
+  );
+  const [id, created, ...envLines] = out.split('\t');
+  const sha = (id || '').replace(/^sha256:/, '').slice(0, 12) || null;
+  const stamped = envLines.join('\t').split('\n').find((l) => l.startsWith('BEING_VERSION='));
+  const version = stamped ? stamped.slice('BEING_VERSION='.length).trim() : '';
+  return {
+    version: version || sha || 'unknown',
+    sha,
+    date: created ? created.slice(0, 10) : null,
+    branch: null,
+    deployed_at: created || null,
+  };
+};
+
 systemParamsRouter.get('/incubator-version', (_req, res) => {
+  if (cached && Date.now() - cached.at < CACHE_MS) return res.json(cached.value);
   try {
-    const raw = fs.readFileSync(STAMP_PATH, 'utf8');
-    const out: Record<string, string> = {};
-    for (const line of raw.split('\n')) {
-      const m = line.match(/^([a-z_]+)=(.*)$/);
-      if (m) out[m[1]] = m[2];
-    }
-    res.json({
-      version: out.version || 'unknown',
-      sha: out.sha || null,
-      date: out.date || null,
-      branch: out.branch || null,
-      deployed_at: out.deployed_at || null,
-    });
+    const value = readImageVersion();
+    cached = { at: Date.now(), value };
+    res.json(value);
   } catch {
+    // The image is genuinely missing or docker is unreachable — and in that
+    // case a newborn would not start at all. 'unknown' is the honest answer,
+    // and the birth page already renders it as a warning.
     res.json({ version: 'unknown', sha: null, date: null, branch: null, deployed_at: null });
   }
 });

@@ -7,6 +7,17 @@ import { statements } from '../db';
 // nostr-tools uses global WebSocket — make sure it's installed in Node
 (globalThis as any).WebSocket ||= WebSocket;
 
+// Where a newborn's own files live on the host, mounted here under BEINGS_ROOT.
+//
+// This was hard-coded to the `beings/` family — the space-between generation.
+// Births moved to being3 (`joskos/`) on 2026-08-08, but these two writes kept
+// creating an empty directory in the old family for every single birth, which
+// then looked like the being existed in two places and blocked that name from
+// ever being born again. The being's certificate belongs in the being's own
+// directory, which is the one birth.sh actually created.
+const beingDataDir = (name: string) =>
+  path.join(process.env.BEINGS_ROOT || '/opt/beings', process.env.BEING_FAMILY || 'joskos', name, 'data');
+
 export interface BeingProfileInput {
   being_hex_priv: string;  // being signs its own profile
   being_hex_pub: string;
@@ -90,8 +101,8 @@ function publishToRelay(relayUrl: string, event: NostrSignedEvent, timeoutMs = 1
 
 /**
  * Sign + publish KIND 73984 Birth Certificate to all KIND 38888 relays.
- * Also writes the signed event to <beings_root>/beings/<name>/data/birth-certificate.json
- * when the bind mount is available.
+ * Also writes the signed event into the being's own data directory (see
+ * beingDataDir) when the bind mount is available.
  */
 export async function publishBirthCertificate(input: BirthCertificateInput): Promise<PublishResult> {
   const hexPriv = process.env.BEING_AUTHORITY_HEX_PRIV;
@@ -134,10 +145,8 @@ export async function publishBirthCertificate(input: BirthCertificateInput): Pro
 
   // Persist copy alongside the being (mounted from host under BEINGS_ROOT)
   try {
-    const root = process.env.BEINGS_ROOT || '/opt/beings';
-    const dir = path.join(root, 'beings', input.being_name, 'data');
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'birth-certificate.json'), JSON.stringify(signed, null, 2));
+    fs.mkdirSync(beingDataDir(input.being_name), { recursive: true });
+    fs.writeFileSync(path.join(beingDataDir(input.being_name), 'birth-certificate.json'), JSON.stringify(signed, null, 2));
   } catch (err: any) {
     console.warn('[birth-cert] local save failed:', err.message);
   }
@@ -219,10 +228,8 @@ export async function publishBeingProfile(input: BeingProfileInput): Promise<Pub
 
   // Persist for local inspection/debug
   try {
-    const root = process.env.BEINGS_ROOT || '/opt/beings';
-    const dir = path.join(root, 'beings', input.being_name, 'data');
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'kind-0-profile.json'), JSON.stringify(signed, null, 2));
+    fs.mkdirSync(beingDataDir(input.being_name), { recursive: true });
+    fs.writeFileSync(path.join(beingDataDir(input.being_name), 'kind-0-profile.json'), JSON.stringify(signed, null, 2));
   } catch (err: any) {
     console.warn('[kind-0] local save failed:', err.message);
   }
