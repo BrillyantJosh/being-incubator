@@ -29,14 +29,20 @@ const readImageVersion = (): VersionInfo => {
     ['image', 'inspect', BEING_IMAGE, '--format', '{{.Id}}\t{{.Created}}\t{{range .Config.Env}}{{println .}}{{end}}'],
     { encoding: 'utf8', timeout: 5000 },
   );
-  const [id, created, ...envLines] = out.split('\t');
-  const sha = (id || '').replace(/^sha256:/, '').slice(0, 12) || null;
+  const [, created, ...envLines] = out.split('\t');
   const stamped = envLines.join('\t').split('\n').find((l) => l.startsWith('BEING_VERSION='));
   const version = stamped ? stamped.slice('BEING_VERSION='.length).trim() : '';
+  const date = created ? created.slice(0, 10) : null;
+  // Deliberately NOT the image digest as a fallback. Under the containerd
+  // image store that digest changed three times in an hour for one unchanged
+  // image, which would show a different "version" of the same code on every
+  // refresh. An unstamped image is honestly identified by its build date;
+  // being3's deploy stamps BEING_VERSION with the commit, and then the
+  // commit is what a creator sees.
   return {
-    version: version || sha || 'unknown',
-    sha,
-    date: created ? created.slice(0, 10) : null,
+    version: version || (date ? `build ${date}` : 'unknown'),
+    sha: version || null,
+    date,
     branch: null,
     deployed_at: created || null,
   };
