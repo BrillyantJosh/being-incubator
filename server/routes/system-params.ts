@@ -33,12 +33,12 @@ const readImageVersion = (): VersionInfo => {
   const stamped = envLines.join('\t').split('\n').find((l) => l.startsWith('BEING_VERSION='));
   const version = stamped ? stamped.slice('BEING_VERSION='.length).trim() : '';
   const date = created ? created.slice(0, 10) : null;
-  // Deliberately NOT the image digest as a fallback. Under the containerd
-  // image store that digest changed three times in an hour for one unchanged
-  // image, which would show a different "version" of the same code on every
-  // refresh. An unstamped image is honestly identified by its build date;
-  // being3's deploy stamps BEING_VERSION with the commit, and then the
-  // commit is what a creator sees.
+  // Deliberately NOT the image digest as a fallback. being3's CI rebuilds
+  // being3:latest on every push to main, so the digest genuinely changes
+  // several times on a busy day — accurate, but meaningless to the person
+  // deciding whether to conceive a being. BEING_VERSION carries the commit,
+  // which answers the question they are actually asking; an unstamped image
+  // is identified by its build date.
   return {
     version: version || (date ? `build ${date}` : 'unknown'),
     sha: version || null,
