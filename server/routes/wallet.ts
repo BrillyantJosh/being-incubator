@@ -7,8 +7,9 @@ export const walletRouter = Router();
 const WALLET_RE = /^L[a-zA-Z0-9]{25,34}$/;
 const HEX64_RE = /^[a-f0-9]{64}$/;
 
-const CHECK_URL = 'https://laluxmwarlejdwyboudz.supabase.co/functions/v1/check';
-const REGISTER_URL = 'https://laluxmwarlejdwyboudz.supabase.co/functions/v1/register-virgin-wallets';
+const REGISTRAR_BASE = process.env.REGISTRAR_URL || 'https://lanatrace.us';
+const CHECK_URL = `${REGISTRAR_BASE}/functions/v1/check`;
+const REGISTER_URL = `${REGISTRAR_BASE}/functions/v1/register-virgin-wallets`;
 
 function loadElectrumServers(): ElectrumServer[] {
   try {
