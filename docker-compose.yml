@@ -7,7 +7,12 @@ services:
     expose:
       - "3006"
     volumes:
-      - ./data:/app/data
+      # ABSOLUTNA pot. Relativni "./data" je dvakrat tiho zamenjal bazo
+      # inkubatorja (22.7.2026, 23.8.2026): zagon iz /opt/being-incubator je
+      # priklopil aprilski skrbek s 5 TESTNIMI bitji namesto registra z 19
+      # pravimi. Julijski popravek je bil necommitan, zato ga je rsync s tega
+      # klona povozil. NE vracaj na relativno pot.
+      - /opt/beings/incubator/being-incubator/data:/app/data
       # Mount the beings root so birth.sh + beings/ are reachable
       - /opt/beings:/opt/beings
       # Docker socket so the incubator can launch new being containers via birth.sh
